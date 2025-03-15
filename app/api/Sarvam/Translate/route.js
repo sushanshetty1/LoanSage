@@ -1,3 +1,7 @@
+// api/Sarvam/Translate/route.js
+
+import { NextResponse } from 'next/server';
+
 export async function POST(request) {
     const { input, source_language_code, target_language_code, speaker_gender, mode, model, enable_preprocessing, output_script, numerals_format } = await request.json();
   

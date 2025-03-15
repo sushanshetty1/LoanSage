@@ -1,3 +1,7 @@
+//api/Sarvam/SpeechToText/route.js
+
+import { NextResponse } from 'next/server';
+
 export async function POST(request) {
     const { file, prompt, model, with_diarization, num_speakers } = await request.formData();
   

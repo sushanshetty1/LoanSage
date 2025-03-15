@@ -1,3 +1,7 @@
+// api/Sarvam/TextAnalytics/route.js
+
+import { NextResponse } from 'next/server';
+
 export async function POST(request) {
     const { text, questions } = await request.formData();
   

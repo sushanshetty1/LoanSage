@@ -1,162 +1,91 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { db, auth } from "@/firebase";
-import { doc, getDoc, updateDoc, collection, addDoc, query, orderBy, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import ChatInterface from "@/components/ChatInterface";
-import VoiceOrb from "@/components/VoiceOrb";
-import { decodeBase64Audio, playAudio } from "@/utils/audioUtils";
 
 const SageChat = () => {
   const [user, setUser] = useState(null);
-  const [currentLanguage, setCurrentLanguage] = useState("English");
-  const [isVoiceActive, setIsVoiceActive] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [voiceInteractionState, setVoiceInteractionState] = useState("idle");
-  const [voiceOutput, setVoiceOutput] = useState("");
-  const [audios, setAudios] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const languages = [
-    { code: "en-IN", name: "English", flag: "🇬🇧" },
-    { code: "hi-IN", name: "Hindi", flag: "हि" },
-    { code: "bn-IN", name: "Bengali", flag: "বা" },
-    { code: "gu-IN", name: "Gujarati", flag: "ગુ" },
-    { code: "kn-IN", name: "Kannada", flag: "ಕ" },
-    { code: "ml-IN", name: "Malayalam", flag: "മ" },
-    { code: "mr-IN", name: "Marathi", flag: "म" },
-    { code: "pa-IN", name: "Punjabi", flag: "ਪੰ" },
-    { code: "ta-IN", name: "Tamil", flag: "த" },
-    { code: "te-IN", name: "Telugu", flag: "తె" },
-  ];
-
-  // Fetch user data and chat history
+  // Fetch user data
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setUser(userData);
-          if (userData.lang) setCurrentLanguage(userData.lang);
+        try {
+          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+          if (userDoc.exists()) {
+            setUser({
+              uid: currentUser.uid,
+              ...userDoc.data()
+            });
+          } else {
+            // Create a user document if it doesn't exist
+            setUser({
+              uid: currentUser.uid,
+              email: currentUser.email,
+              displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User'
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
         }
-
-        // Fetch chat history
-        const q = query(
-          collection(db, "sageHistory", currentUser.uid, "messages"),
-          orderBy("timestamp", "asc")
-        );
-        const unsubscribeChat = onSnapshot(q, (querySnapshot) => {
-          const chatMessages = [];
-          querySnapshot.forEach((doc) => {
-            chatMessages.push(doc.data());
-          });
-          setMessages(chatMessages);
-        });
-
-        return () => unsubscribeChat();
       } else {
         setUser(null);
       }
+      setIsLoading(false);
     });
+    
     return () => unsubscribe();
   }, []);
 
-  // Handle language selection
-  const selectLanguage = async (language) => {
-    setCurrentLanguage(language.name);
-    if (user && auth.currentUser) {
-      try {
-        await updateDoc(doc(db, "users", auth.currentUser.uid), {
-          lang: language.name,
-        });
-      } catch (error) {
-        console.error("Error updating language:", error);
-      }
+  // Update user profile (can be used later for settings)
+  const updateUserProfile = async (data) => {
+    if (!user?.uid) return;
+    
+    try {
+      await updateDoc(doc(db, "users", user.uid), data);
+      setUser(prev => ({...prev, ...data}));
+      return true;
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      return false;
     }
   };
 
-  // Save message to Firestore
-  const saveMessageToFirestore = async (message) => {
-    if (user && auth.currentUser) {
-      try {
-        await addDoc(collection(db, "sageHistory", auth.currentUser.uid, "messages"), {
-          userId: auth.currentUser.uid,
-          sender: message.sender,
-          text: message.text,
-          language: message.language,
-          timestamp: new Date(),
-        });
-      } catch (error) {
-        console.error("Error saving message:", error);
-      }
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-white mt-4">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Toggle voice recording
-  const toggleRecording = async (e) => {
-    e.preventDefault();
-    if (!isVoiceActive) {
-      setIsVoiceActive(true);
-      setIsRecording(true);
-      setVoiceInteractionState("listening");
-      setVoiceOutput("");
-    } else if (isRecording) {
-      setIsRecording(false);
-      setVoiceInteractionState("processing");
-      setVoiceOutput("Processing your request...");
-      await processVoiceMessage(voiceOutput || "Looking for loan options");
-    } else {
-      setIsRecording(true);
-      setVoiceInteractionState("listening");
-      setVoiceOutput("");
-    }
-  };
-
-  // Cancel voice interaction
-  const cancelVoiceInteraction = () => {
-    setIsVoiceActive(false);
-    setIsRecording(false);
-    setVoiceInteractionState("idle");
-    setVoiceOutput("");
-  };
-
-  // Process voice message
-  const processVoiceMessage = async (text) => {
-    if (!text.trim()) return;
-    // Add logic to process voice input and generate bot response
-  };
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800 p-8 rounded-lg shadow-lg max-w-md w-full text-center">
+          <h1 className="text-2xl font-bold text-white mb-4">Sign In Required</h1>
+          <p className="text-gray-300 mb-6">Please sign in to access Sarvam AI Chat.</p>
+          <button 
+            onClick={() => window.location.href = '/Login'}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+          >
+            Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black text-white mt-10">
-      {/* Chat Interface */}
-      <ChatInterface
-        user={user}
-        currentLanguage={currentLanguage}
-        languages={languages}
-        selectLanguage={selectLanguage}
-        isVoiceActive={isVoiceActive}
-        isRecording={isRecording}
-        toggleRecording={toggleRecording}
-        voiceOutput={voiceOutput}
-        saveMessageToFirestore={saveMessageToFirestore}
-        audios={audios}
-        setAudios={setAudios}
-        messages={messages}
-        setMessages={setMessages}
-      />
-
-      {/* Voice Orb Overlay */}
-      {isVoiceActive && (
-        <VoiceOrb
-          isRecording={isRecording}
-          voiceInteractionState={voiceInteractionState}
-          voiceOutput={voiceOutput}
-          cancelVoiceInteraction={cancelVoiceInteraction}
-          toggleRecording={toggleRecording}
-          audios={audios}
-        />
-      )}
+    <div className="min-h-screen bg-gray-900">
+      {/* Pass the authenticated user object to ChatInterface */}
+      <ChatInterface user={user} />
     </div>
   );
 };
