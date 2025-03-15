@@ -12,7 +12,8 @@ import {
   LogOut, 
   LayoutDashboard, 
   ChevronDown, 
-  Globe 
+  Globe,
+  CreditCard, 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -109,6 +110,47 @@ const MobileNavItem = ({ icon: Icon, text, href, onClick, delay = 0 }) => (
       <span className="font-medium">{text}</span>
     </Link>
   </motion.div>
+);
+
+const DesktopSkeleton = () => (
+  <>
+    <div className="hidden md:flex items-center space-x-8">
+      {[1, 2, 3].map((item) => (
+        <div key={item} className="flex items-center space-x-2">
+          <Skeleton className="h-5 w-5 rounded-md" />
+          <Skeleton className="h-5 w-16" />
+        </div>
+      ))}
+    </div>
+    <div className="hidden md:flex items-center space-x-4">
+      <Skeleton className="h-10 w-32 rounded-md" />
+      <Skeleton className="h-10 w-28 rounded-full" />
+    </div>
+  </>
+);
+
+const MobileSkeleton = () => (
+  <div className="px-6 py-4 space-y-4">
+    {[1, 2, 3, 4].map((item) => (
+      <div key={item} className="flex items-center space-x-3">
+        <Skeleton className="h-10 w-10 rounded-md" />
+        <Skeleton className="h-6 w-28" />
+      </div>
+    ))}
+    <div className="border-t border-gray-800 my-3"></div>
+    <Skeleton className="h-20 w-full rounded-lg" />
+    <div className="grid grid-cols-2 gap-2 mb-3">
+      <Skeleton className="h-16 rounded-lg" />
+      <Skeleton className="h-16 rounded-lg" />
+    </div>
+    <Skeleton className="h-8 w-48 rounded-md mb-2" />
+    <div className="grid grid-cols-3 gap-2">
+      {[1, 2, 3, 4, 5, 6].map((item) => (
+        <Skeleton key={item} className="h-14 rounded-lg" />
+      ))}
+    </div>
+    <Skeleton className="h-12 w-full rounded-lg mt-4" />
+  </div>
 );
 
 const LanguageSelector = ({ selectedLanguage, changeLanguage, className }) => (
@@ -311,6 +353,23 @@ const Navbar = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const { user, userType, logout, loading } = useAuth();
+
+  useEffect(() => {
+    const fetchUserLanguage = async () => {
+      if (user) {
+        const userRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists() && userDoc.data().lang) {
+          const userLang = languageOptions.find((lang) => lang.code === userDoc.data().lang);
+          if (userLang) {
+            setSelectedLanguage(userLang);
+          }
+        }
+      }
+    };
+
+    fetchUserLanguage();
+  }, [user]);
 
   useEffect(() => {
     const logoTimer = setTimeout(() => {
