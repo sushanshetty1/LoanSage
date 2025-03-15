@@ -216,7 +216,7 @@ const UserProfile = ({ user, userType, logout, isMobile = false, onMenuClose }) 
         </div>
         <div className="grid grid-cols-2 gap-2 mb-3">
           <Link 
-            href="/dashboard" 
+            href="/Dashboard" 
             className="flex flex-col items-center justify-center py-3 px-2 bg-gray-800/50 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
             onClick={onMenuClose}
           >
@@ -262,7 +262,7 @@ const UserProfile = ({ user, userType, logout, isMobile = false, onMenuClose }) 
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-gray-700" />
         <DropdownMenuItem className="hover:bg-gray-800 rounded-md cursor-pointer" asChild>
-          <Link href="/dashboard" className="flex items-center space-x-2 px-3 py-2 w-full">
+          <Link href="/Dashboard" className="flex items-center space-x-2 px-3 py-2 w-full">
             <LayoutDashboard className="h-4 w-4 text-gray-400" />
             <span>Dashboard</span>
           </Link>
