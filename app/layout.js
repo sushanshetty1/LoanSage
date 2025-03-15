@@ -24,9 +24,12 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className="flex flex-col min-h-screen">
         <AuthProvider>
-          <Navbar />
-          <main className="flex-grow">
-            {/* Remove the second <body> tag */}
+          {/* Sticky Navbar */}
+          <div className="sticky top-0 z-50">
+            <Navbar />
+          </div>
+          {/* Ensure content starts below Navbar */}
+          <main className="flex-grow pt-[84px]">
             <div className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
               {children}
             </div>

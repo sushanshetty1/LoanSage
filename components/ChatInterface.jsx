@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Mic, Globe, SendHorizontal, MessageCircle, Plus, Loader2, Settings, X , Menu} from "lucide-react";
 import { decodeBase64Audio, playAudio } from "@/utils/audioUtils";
 import { db } from "@/firebase";
-import { collection, addDoc, query, where, onSnapshot, orderBy, updateDoc, doc } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, orderBy, updateDoc, doc, getDoc } from "firebase/firestore";
 
 const ChatInterface = ({ user }) => {
   const [inputText, setInputText] = useState("");
@@ -20,8 +20,11 @@ const ChatInterface = ({ user }) => {
   const [isFetchingMessages, setIsFetchingMessages] = useState(false);
   const [error, setError] = useState(null);
   const [initialized, setInitialized] = useState(false);
+  const [recognitionError, setRecognitionError] = useState(null);
+  const [showLangMenu, setShowLangMenu] = useState(false);
   const chatContainerRef = useRef(null);
   const inputRef = useRef(null);
+  const langMenuRef = useRef(null);
 
   const languages = [
     { code: "en-IN", name: "English" },
@@ -35,6 +38,28 @@ const ChatInterface = ({ user }) => {
     { code: 'bn-IN', name: 'Bengali'},
     { code: 'gu-IN', name: 'Gujarati'}
   ];
+
+  // Load user's preferred language from Firestore
+  useEffect(() => {
+    const fetchUserLanguage = async () => {
+      if (user?.uid) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists() && userDoc.data().lang) {
+            const userLang = userDoc.data().lang;
+            const matchedLang = languages.find(l => l.code === userLang.code || l.code === userLang);
+            if (matchedLang) {
+              setCurrentLanguage(matchedLang);
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching user language:", err);
+        }
+      }
+    };
+    
+    fetchUserLanguage();
+  }, [user]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -54,6 +79,18 @@ const ChatInterface = ({ user }) => {
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Click outside handler for language menu
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target)) {
+        setShowLangMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -140,7 +177,7 @@ const ChatInterface = ({ user }) => {
     }
   }, [currentSessionId, chatSessions]);
 
-  // Speech Recognition Setup
+  // Speech Recognition Setup with improved error handling
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -152,6 +189,7 @@ const ChatInterface = ({ user }) => {
 
         recognitionInstance.onstart = () => {
           setIsListening(true);
+          setRecognitionError(null);
         };
 
         recognitionInstance.onresult = (event) => {
@@ -163,6 +201,20 @@ const ChatInterface = ({ user }) => {
         recognitionInstance.onerror = (event) => {
           console.error("Speech recognition error", event.error);
           setIsListening(false);
+          
+          // Handle specific error types
+          if (event.error === 'network') {
+            setRecognitionError("Network error. Check your connection and try again.");
+          } else if (event.error === 'not-allowed') {
+            setRecognitionError("Microphone access denied. Please allow microphone access.");
+          } else if (event.error === 'no-speech') {
+            setRecognitionError("No speech detected. Please try again.");
+          } else {
+            setRecognitionError(`Error: ${event.error}. Please try again.`);
+          }
+          
+          // Auto-clear error after 5 seconds
+          setTimeout(() => setRecognitionError(null), 5000);
         };
 
         recognitionInstance.onend = () => {
@@ -173,6 +225,17 @@ const ChatInterface = ({ user }) => {
       }
     }
   }, [currentLanguage]);
+
+  // Helper function to restart recognition
+  const restartSpeechRecognition = () => {
+    if (recognition) {
+      setRecognitionError(null);
+      recognition.abort();
+      setTimeout(() => {
+        recognition.start();
+      }, 100);
+    }
+  };
 
   // Helper functions
   const truncateTitle = (text) => {
@@ -316,17 +379,26 @@ const ChatInterface = ({ user }) => {
   
     try {
       // Translation and processing
-      const englishText = currentLanguage.code !== "en-IN" 
-        ? await translateText(text, currentLanguage.code, "en-IN")
-        : text;
+      let englishText = text;
+      
+      // Only translate if not English
+      if (currentLanguage.code !== "en-IN") {
+        try {
+          englishText = await translateText(text, currentLanguage.code, "en-IN");
+        } catch (translationError) {
+          console.error("Translation error:", translationError);
+          // Fallback to original text if translation fails
+          englishText = text;
+        }
+      }
   
-      // LLM API call
+      // LLM API call - always pass the prompt in English for consistency
       const llmResponse = await fetch("/api/LLM", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          prompt: englishText, 
-          language: "en-IN" 
+          prompt: englishText,
+          language: "en-IN"  // Always send as English to LLM
         }),
       });
   
@@ -335,12 +407,24 @@ const ChatInterface = ({ user }) => {
       
       // Generate response
       let responseText = llmData.output;
+      
+      // Translate response back to user's language if needed
       if (currentLanguage.code !== "en-IN") {
-        responseText = await translateText(responseText, "en-IN", currentLanguage.code);
+        try {
+          responseText = await translateText(responseText, "en-IN", currentLanguage.code);
+        } catch (translationError) {
+          console.error("Response translation error:", translationError);
+          // Keep original response if translation fails
+        }
       }
   
       // Generate speech
-      const audioBase64 = await generateSpeech(responseText);
+      let audioBase64 = null;
+      try {
+        audioBase64 = await generateSpeech(responseText);
+      } catch (ttsError) {
+        console.error("TTS error:", ttsError);
+      }
   
       // Save bot response
       const botMessage = {
@@ -351,7 +435,9 @@ const ChatInterface = ({ user }) => {
       };
       
       saveMessage(botMessage);
-      setAudios(prev => [...prev, audioBase64]);
+      if (audioBase64) {
+        setAudios(prev => [...prev, audioBase64]);
+      }
   
     } catch (error) {
       console.error("Chat error:", error);
@@ -368,33 +454,50 @@ const ChatInterface = ({ user }) => {
     }
   };
 
-  const handleLanguageChange = (lang) => {
+  const handleLanguageChange = async (lang) => {
     setCurrentLanguage(lang);
+    setShowLangMenu(false);
     
     // Update recognition language if it exists
     if (recognition) {
       recognition.lang = lang.code;
     }
+    
+    // Store user's language preference if user is logged in
+    if (user?.uid) {
+      try {
+        await updateDoc(doc(db, "users", user.uid), {
+          lang: lang
+        });
+      } catch (error) {
+        console.error("Error updating user language:", error);
+      }
+    }
   };
 
   // UI Components
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-gray-900 mt-18">
+    <div className="flex flex-col md:flex-row h-screen bg-gray-900 mt-16 md:mt-0">
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+      <div className="md:hidden flex items-center justify-between p-3 sticky top-0 bg-gray-800 border-b border-gray-700 z-20">
         <button 
           onClick={() => setShowSidebar(!showSidebar)}
           className="p-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600"
+          aria-label="Toggle sidebar"
         >
-          <MessageCircle className="h-5 w-5" />
+          {showSidebar ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
         <h1 className="text-lg font-semibold text-white">Sarvam AI Chat</h1>
-        <div className="flex items-center space-x-2">
-          <div className="relative group">
-            <button className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600">
-              <Globe className="h-5 w-5 text-white" />
-            </button>
-            <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg overflow-hidden z-50 hidden group-hover:block">
+        <div className="relative" ref={langMenuRef}>
+          <button 
+            onClick={() => setShowLangMenu(!showLangMenu)}
+            className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600"
+            aria-label="Change language"
+          >
+            <Globe className="h-5 w-5 text-white" />
+          </button>
+          {showLangMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg overflow-hidden z-50">
               {languages.map(lang => (
                 <button
                   key={lang.code}
@@ -405,22 +508,36 @@ const ChatInterface = ({ user }) => {
                 </button>
               ))}
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       {/* Chat History Sidebar */}
-      <div className={`${showSidebar ? 'block' : 'hidden'} md:block w-full md:w-64 bg-gray-800 border-r border-gray-700 md:min-h-screen overflow-y-auto`}>
+      <div 
+        className={`${showSidebar ? 'fixed inset-0 z-30 md:relative' : 'hidden'} md:block w-full md:w-64 bg-gray-800 border-r border-gray-700 md:min-h-screen overflow-y-auto`}
+        style={{ height: showSidebar && window.innerWidth < 768 ? '100%' : 'auto' }}
+      >
         <div className="sticky top-0 bg-gray-800 p-4 border-b border-gray-700 z-10">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-white">Chat History</h2>
-            <button
-              onClick={createNewChatSession}
-              className="p-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-              aria-label="New chat"
-            >
-              <Plus className="h-5 w-5 text-white" />
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={createNewChatSession}
+                className="p-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                aria-label="New chat"
+              >
+                <Plus className="h-5 w-5 text-white" />
+              </button>
+              {window.innerWidth < 768 && (
+                <button
+                  onClick={() => setShowSidebar(false)}
+                  className="p-2 bg-gray-700 rounded-lg hover:bg-gray-600"
+                  aria-label="Close sidebar"
+                >
+                  <X className="h-5 w-5 text-white" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
         
@@ -472,7 +589,7 @@ const ChatInterface = ({ user }) => {
       </div>
 
       {/* Main Chat Interface */}
-      <div className="flex-1 flex flex-col h-[calc(100vh-64px)] md:h-screen">
+      <div className="flex-1 flex flex-col h-[calc(100vh-56px)] md:h-screen">
         {/* Chat Header - Desktop */}
         <div className="hidden md:flex p-4 bg-gray-800 border-b border-gray-700 items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -629,16 +746,27 @@ const ChatInterface = ({ user }) => {
           </div>
         )}
 
-        {/* Input Area */}
+        {/* Input Area with improved error handling */}
         {currentSessionId && !isFetchingMessages && (
           <div className="p-3 sm:p-4 bg-gray-800 border-t border-gray-700">
+            {recognitionError && (
+              <div className="mb-3 p-2 bg-red-900/30 border border-red-700/50 rounded text-sm text-red-300 flex items-center justify-between">
+                <span>{recognitionError}</span>
+                <button 
+                  onClick={restartSpeechRecognition}
+                  className="ml-2 text-xs bg-red-700/50 hover:bg-red-700 px-2 py-1 rounded transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
             <div className="flex space-x-2 sm:space-x-4">
               <input
                 ref={inputRef}
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && !isTyping && sendMessage()}
+                onKeyDown={(e) => e.key === "Enter" && !isTyping && !e.shiftKey && sendMessage()}
                 placeholder="Type your message..."
                 className="flex-1 p-2 sm:p-3 bg-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isTyping}
@@ -651,6 +779,7 @@ const ChatInterface = ({ user }) => {
                     ? 'bg-gray-700 text-gray-500 cursor-not-allowed' 
                     : 'bg-blue-600 hover:bg-blue-700 text-white'
                 }`}
+                aria-label="Send message"
               >
                 <SendHorizontal className="h-5 w-5" />
               </button>
@@ -660,7 +789,13 @@ const ChatInterface = ({ user }) => {
                     if (isListening) {
                       recognition.stop();
                     } else {
-                      recognition.start();
+                      setRecognitionError(null);
+                      try {
+                        recognition.start();
+                      } catch (err) {
+                        console.error("Failed to start recognition:", err);
+                        setRecognitionError("Failed to start speech recognition. Please try again.");
+                      }
                     }
                   }
                 }}
@@ -670,12 +805,18 @@ const ChatInterface = ({ user }) => {
                     ? 'bg-red-600 hover:bg-red-700' 
                     : 'bg-gray-700 hover:bg-gray-600'
                 } ${isTyping ? 'opacity-50 cursor-not-allowed' : ''}`}
+                aria-label={isListening ? "Stop listening" : "Start voice input"}
               >
                 <Mic className={`h-5 w-5 ${isListening ? 'text-white animate-pulse' : 'text-white'}`} />
               </button>
             </div>
             {isListening && (
-              <p className="text-xs text-center mt-2 text-blue-400">Listening... Speak now</p>
+              <div className="flex items-center justify-center mt-2 space-x-1">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse delay-75"></span>
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse delay-150"></span>
+                <span className="text-xs text-red-400 ml-2">Listening... Speak now</span>
+              </div>
             )}
           </div>
         )}
