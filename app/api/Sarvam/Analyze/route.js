@@ -1,16 +1,18 @@
-import { translateText } from '../../utils/apiClient';
+import { analyzeText } from '../utils/apiClient';
 
-export default async function handler(req, res) {
-    if (req.method === 'POST') {
-        const { text, sourceLang, targetLang } = req.body;
-
+export default function AnalyzeTextPage() {
+    const handleAnalyze = async () => {
         try {
-            const result = await translateText(text, sourceLang, targetLang);
-            res.status(200).json(result);
+            const analysisResult = await analyzeText('Climate change is a critical global challenge.');
+            console.log('Analysis Result:', analysisResult);
         } catch (error) {
-            res.status(500).json({ error: 'Failed to translate text' });
+            console.error('Text analysis failed:', error);
         }
-    } else {
-        res.status(405).json({ error: 'Method not allowed' });
-    }
+    };
+
+    return (
+        <div>
+            <button onClick={handleAnalyze}>Analyze Text</button>
+        </div>
+    );
 }

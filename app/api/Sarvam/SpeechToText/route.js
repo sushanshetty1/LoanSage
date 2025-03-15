@@ -1,16 +1,18 @@
-import { speechToTextTranslate } from '../../utils/apiClient';
+import { speechToTextTranslate } from '../utils/apiClient';
 
-export default async function handler(req, res) {
-    if (req.method === 'POST') {
-        const { audioFile, sourceLang, targetLang } = req.body;
-
+export default function SpeechToTextPage() {
+    const handleSpeechToText = async (audioFile) => {
         try {
-            const result = await speechToTextTranslate(audioFile, sourceLang, targetLang);
-            res.status(200).json(result);
+            const result = await speechToTextTranslate(audioFile, 'en', 'hi');
+            console.log('Speech to Text Result:', result);
         } catch (error) {
-            res.status(500).json({ error: 'Failed to convert speech to text and translate' });
+            console.error('Speech to Text failed:', error);
         }
-    } else {
-        res.status(405).json({ error: 'Method not allowed' });
-    }
+    };
+
+    return (
+        <div>
+            <input type="file" onChange={(e) => handleSpeechToText(e.target.files[0])} />
+        </div>
+    );
 }

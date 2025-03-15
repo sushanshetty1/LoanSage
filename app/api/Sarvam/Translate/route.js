@@ -1,16 +1,18 @@
-import { translateText } from '@/utils/apiClient';
+import { translateText } from '../utils/apiClient';
 
-export default async function handler(req, res) {
-    if (req.method === 'POST') {
-        const { text, sourceLang, targetLang } = req.body;
-
+export default function TranslatePage() {
+    const handleTranslate = async () => {
         try {
-            const result = await translateText(text, sourceLang, targetLang);
-            res.status(200).json(result);
+            const translatedText = await translateText('Hello', 'en', 'hi');
+            console.log('Translated Text:', translatedText);
         } catch (error) {
-            res.status(500).json({ error: 'Failed to translate text' });
+            console.error('Translation failed:', error);
         }
-    } else {
-        res.status(405).json({ error: 'Method not allowed' });
-    }
+    };
+
+    return (
+        <div>
+            <button onClick={handleTranslate}>Translate</button>
+        </div>
+    );
 }

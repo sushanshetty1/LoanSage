@@ -1,16 +1,19 @@
-import { textToSpeech } from '../../utils/apiClient';
+import { textToSpeech } from '../utils/apiClient';
 
-export default async function handler(req, res) {
-    if (req.method === 'POST') {
-        const { text, language, voice } = req.body;
-
+export default function TextToSpeechPage() {
+    const handleTextToSpeech = async () => {
         try {
-            const result = await textToSpeech(text, language, voice);
-            res.status(200).json(result);
+            const audioData = await textToSpeech('Hello, how are you?', 'en', 'female');
+            console.log('Audio Data:', audioData);
+            // Play the audio or handle the response
         } catch (error) {
-            res.status(500).json({ error: 'Failed to convert text to speech' });
+            console.error('Text to Speech failed:', error);
         }
-    } else {
-        res.status(405).json({ error: 'Method not allowed' });
-    }
+    };
+
+    return (
+        <div>
+            <button onClick={handleTextToSpeech}>Convert to Speech</button>
+        </div>
+    );
 }
