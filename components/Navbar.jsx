@@ -13,7 +13,8 @@ import {
   LayoutDashboard, 
   ChevronDown, 
   Globe,
-  CreditCard, 
+  CreditCard,
+  ArrowRightCircle, 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
