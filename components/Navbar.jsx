@@ -3,22 +3,18 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
-  BarChart, 
-  Languages, 
-  CreditCard, 
-  BookOpen, 
+  Home, 
+  ShoppingBag, 
   Menu, 
   X, 
-  LogIn,
-  Home,
-  Calculator,
-  ArrowRightCircle,
+  LogIn, 
+  UserCircle, 
+  LogOut, 
+  LayoutDashboard, 
+  ChevronDown, 
   Globe,
-  ChevronDown,
-  UserCircle,
-  LogOut,
-  LayoutDashboard,
-  ShoppingBag // Added for Marketplace icon
+  CreditCard,
+  ArrowRightCircle, 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,56 +29,57 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/AuthContext";
 import SageButton from "@/components/Sage";
+import { doc, setDoc, updateDoc, getDoc } from "firebase/firestore";
+import { db } from "@/firebase";
 
 const languageOptions = [
-    { code: "en-IN", name: "English", flag: "🇮🇳" },
-    { code: "hi-IN", name: "हिन्दी", flag: "🇮🇳" },
-    { code: "bn-IN", name: "বাংলা", flag: "🇮🇳" },
-    { code: "gu-IN", name: "ગુજરાતી", flag: "🇮🇳" },
-    { code: "kn-IN", name: "ಕನ್ನಡ", flag: "🇮🇳" },
-    { code: "ml-IN", name: "മലയാളം", flag: "🇮🇳" },
-    { code: "mr-IN", name: "मराठी", flag: "🇮🇳" },
-    { code: "od-IN", name: "ଓଡ଼ିଆ", flag: "🇮🇳" },
-    { code: "pa-IN", name: "ਪੰਜਾਬੀ", flag: "🇮🇳" },
-    { code: "ta-IN", name: "தமிழ்", flag: "🇮🇳" },
-    { code: "te-IN", name: "తెలుగు", flag: "🇮🇳" },
+  { code: "en-IN", name: "English", flag: "🇮🇳" },
+  { code: "hi-IN", name: "हिन्दी", flag: "🇮🇳" },
+  { code: "bn-IN", name: "বাংলা", flag: "🇮🇳" },
+  { code: "gu-IN", name: "ગુજરાતી", flag: "🇮🇳" },
+  { code: "kn-IN", name: "ಕನ್ನಡ", flag: "🇮🇳" },
+  { code: "ml-IN", name: "മലയാളം", flag: "🇮🇳" },
+  { code: "mr-IN", name: "मराठी", flag: "🇮🇳" },
+  { code: "od-IN", name: "ଓଡ଼ିଆ", flag: "🇮🇳" },
+  { code: "pa-IN", name: "ਪੰਜਾਬੀ", flag: "🇮🇳" },
+  { code: "ta-IN", name: "தமிழ்", flag: "🇮🇳" },
+  { code: "te-IN", name: "తెలుగు", flag: "🇮🇳" },
 ];
 
 const Logo = ({ showLogo }) => (
-    <Link href="/">
-  <motion.div 
-    initial={{ x: -50, opacity: 0 }}
-    animate={{ x: 0, opacity: 1 }}
-    transition={{ duration: 0.5, type: "spring" }}
-    className="flex items-center space-x-3"
-  >
+  <Link href="/">
     <motion.div 
-      initial={{ rotate: -180, scale: 0 }}
-      animate={{ rotate: 0, scale: 1 }}
-      transition={{ duration: 0.7, type: "spring", bounce: 0.5 }}
-      className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg relative overflow-hidden shadow-xl"
+      initial={{ x: -50, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ duration: 0.5, type: "spring" }}
+      className="flex items-center space-x-3"
     >
-      <CreditCard className="h-6 w-6 text-white relative z-10" />
-      <div className="absolute inset-0 bg-white opacity-0 hover:opacity-20 transition-opacity duration-300"></div>
       <motion.div 
-        animate={{ 
-          background: ['linear-gradient(45deg, #4f46e5, #7e22ce)', 'linear-gradient(225deg, #7e22ce, #4f46e5)'],
-        }}
-        transition={{ duration: 3, repeat: Infinity, repeatType: "reverse" }}
-        className="absolute inset-0 z-0"
-      />
+        initial={{ rotate: -180, scale: 0 }}
+        animate={{ rotate: 0, scale: 1 }}
+        transition={{ duration: 0.7, type: "spring", bounce: 0.5 }}
+        className="bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-lg relative overflow-hidden shadow-xl"
+      >
+        <CreditCard className="h-6 w-6 text-white relative z-10" />
+        <div className="absolute inset-0 bg-white opacity-0 hover:opacity-20 transition-opacity duration-300"></div>
+        <motion.div 
+          animate={{ 
+            background: ['linear-gradient(45deg, #4f46e5, #7e22ce)', 'linear-gradient(225deg, #7e22ce, #4f46e5)'],
+          }}
+          transition={{ duration: 3, repeat: Infinity, repeatType: "reverse" }}
+          className="absolute inset-0 z-0"
+        />
+      </motion.div>
+      <motion.span 
+        className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: showLogo ? 1 : 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        LoanSage
+      </motion.span>
     </motion.div>
-    
-    <motion.span 
-      className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: showLogo ? 1 : 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      LoanSage
-    </motion.span>
-  </motion.div>
-    </Link>
+  </Link>
 );
 
 const NavItem = ({ icon: Icon, text, href, onClick }) => (
@@ -135,34 +132,24 @@ const DesktopSkeleton = () => (
 
 const MobileSkeleton = () => (
   <div className="px-6 py-4 space-y-4">
-    {/* Navigation link skeletons */}
     {[1, 2, 3, 4].map((item) => (
       <div key={item} className="flex items-center space-x-3">
         <Skeleton className="h-10 w-10 rounded-md" />
         <Skeleton className="h-6 w-28" />
       </div>
     ))}
-    
     <div className="border-t border-gray-800 my-3"></div>
-    
-    {/* User profile section skeleton */}
     <Skeleton className="h-20 w-full rounded-lg" />
-    
-    {/* Action buttons skeleton */}
     <div className="grid grid-cols-2 gap-2 mb-3">
       <Skeleton className="h-16 rounded-lg" />
       <Skeleton className="h-16 rounded-lg" />
     </div>
-    
-    {/* Language selector skeleton */}
     <Skeleton className="h-8 w-48 rounded-md mb-2" />
     <div className="grid grid-cols-3 gap-2">
       {[1, 2, 3, 4, 5, 6].map((item) => (
         <Skeleton key={item} className="h-14 rounded-lg" />
       ))}
     </div>
-    
-    {/* Login button skeleton */}
     <Skeleton className="h-12 w-full rounded-lg mt-4" />
   </div>
 );
@@ -227,7 +214,6 @@ const UserProfile = ({ user, userType, logout, isMobile = false, onMenuClose }) 
             <div className="text-xs text-gray-400">{userType || "User"}</div>
           </div>
         </div>
-        
         <div className="grid grid-cols-2 gap-2 mb-3">
           <Link 
             href="/dashboard" 
@@ -238,7 +224,6 @@ const UserProfile = ({ user, userType, logout, isMobile = false, onMenuClose }) 
             <span className="text-sm">Dashboard</span>
           </Link>
         </div>
-        
         <button
           onClick={handleLogout}
           className="w-full py-2.5 px-3 text-center bg-red-900/20 hover:bg-red-900/30 rounded-lg text-red-400 hover:text-red-300 transition-colors border border-red-900/30"
@@ -369,7 +354,24 @@ const Navbar = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const { user, userType, logout, loading } = useAuth();
-  
+
+  useEffect(() => {
+    const fetchUserLanguage = async () => {
+      if (user) {
+        const userRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists() && userDoc.data().lang) {
+          const userLang = languageOptions.find((lang) => lang.code === userDoc.data().lang);
+          if (userLang) {
+            setSelectedLanguage(userLang);
+          }
+        }
+      }
+    };
+
+    fetchUserLanguage();
+  }, [user]);
+
   useEffect(() => {
     const logoTimer = setTimeout(() => {
       setShowLogo(true);
@@ -385,19 +387,29 @@ const Navbar = () => {
     
     window.addEventListener('scroll', handleScroll);
     
-    // Cleanup
     return () => {
       clearTimeout(logoTimer);
       clearTimeout(loadingTimer);
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
-  
+
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-  const changeLanguage = (language) => setSelectedLanguage(language);
   const closeMenu = () => setIsMenuOpen(false);
 
-  // Navigation items for reuse
+  const changeLanguage = async (language) => {
+    setSelectedLanguage(language);
+    if (user) {
+      const userRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        await updateDoc(userRef, { lang: language.code });
+      } else {
+        await setDoc(userRef, { lang: language.code });
+      }
+    }
+  };
+
   const navItems = [
     { icon: Home, text: "Home", href: "/" },
     { icon: ShoppingBag, text: "Marketplace", href: "/Marketplace" },
@@ -405,15 +417,9 @@ const Navbar = () => {
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-black/90 backdrop-blur-md shadow-lg shadow-purple-900/10' : 'bg-black'}`}>
-      {/* Gradient Bar */}
       <div className="h-1 bg-gradient-to-r from-purple-600 via-blue-500 to-emerald-400"></div>
-      
-      {/* Main Navbar */}
       <div className="relative py-4 px-6 flex items-center justify-between">
-        {/* Logo Area */}
         <Logo showLogo={showLogo} />
-
-        {/* Desktop Navigation */}
         {isLoading || loading ? (
           <DesktopSkeleton />
         ) : (
@@ -429,15 +435,11 @@ const Navbar = () => {
               ))}
               <SageButton />
             </div>
-
-            {/* Language Selector & Login/User Profile (Desktop) */}
             <div className="hidden md:flex items-center space-x-4">
               <LanguageSelector 
                 selectedLanguage={selectedLanguage} 
                 changeLanguage={changeLanguage}
               />
-              
-              {/* Auth-based display */}
               {user ? (
                 <UserProfile user={user} userType={userType} logout={logout} />
               ) : (
@@ -446,8 +448,6 @@ const Navbar = () => {
             </div>
           </>
         )}
-
-        {/* Mobile Menu Button */}
         <motion.button 
           className="md:hidden text-white focus:outline-none"
           onClick={toggleMenu}
@@ -479,8 +479,6 @@ const Navbar = () => {
           </AnimatePresence>
         </motion.button>
       </div>
-
-      {/* Mobile Menu */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
@@ -490,12 +488,10 @@ const Navbar = () => {
             transition={{ duration: 0.3 }}
             className="md:hidden bg-gray-900/95 backdrop-blur-sm border-t border-gray-800 fixed left-0 right-0 overflow-y-auto max-h-[calc(100vh-80px)] shadow-lg shadow-purple-900/20"
           >
-            {/* Mobile Menu Content - Show skeleton or actual content */}
             {isLoading || loading ? (
               <MobileSkeleton />
             ) : (
               <div className="px-6 py-4 space-y-3">
-                {/* Mobile Navigation Links */}
                 {navItems.map((item, index) => (
                   <MobileNavItem
                     key={item.text}
@@ -506,8 +502,6 @@ const Navbar = () => {
                     delay={index * 0.05}
                   />
                 ))}
-                
-                {/* Add Sage button to mobile menu */}
                 <motion.div
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
@@ -516,8 +510,6 @@ const Navbar = () => {
                 >
                   <SageButton />
                 </motion.div>
-                
-                {/* Mobile User Profile Section or Login */}
                 {user ? (
                   <UserProfile 
                     user={user} 
@@ -529,8 +521,6 @@ const Navbar = () => {
                 ) : (
                   <LoginButton isMobile={true} onMenuClose={closeMenu} />
                 )}
-                
-                {/* Mobile Language Selector */}
                 <MobileLanguageSelector 
                   selectedLanguage={selectedLanguage}
                   changeLanguage={changeLanguage}
@@ -540,24 +530,6 @@ const Navbar = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      
-      {/* Custom styles for dropdown scrollbar */}
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(75, 85, 99, 0.2);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(139, 92, 246, 0.5);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(139, 92, 246, 0.7);
-        }
-      `}</style>
     </nav>
   );
 };
