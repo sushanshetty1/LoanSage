@@ -33,17 +33,16 @@ import { doc, setDoc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase";
 
 const languageOptions = [
-  { code: "en-IN", name: "English", flag: "🇮🇳" },
-  { code: "hi-IN", name: "हिन्दी", flag: "🇮🇳" },
-  { code: "bn-IN", name: "বাংলা", flag: "🇮🇳" },
-  { code: "gu-IN", name: "ગુજરાતી", flag: "🇮🇳" },
-  { code: "kn-IN", name: "ಕನ್ನಡ", flag: "🇮🇳" },
-  { code: "ml-IN", name: "മലയാളം", flag: "🇮🇳" },
-  { code: "mr-IN", name: "मराठी", flag: "🇮🇳" },
-  { code: "od-IN", name: "ଓଡ଼ିଆ", flag: "🇮🇳" },
-  { code: "pa-IN", name: "ਪੰਜਾਬੀ", flag: "🇮🇳" },
-  { code: "ta-IN", name: "தமிழ்", flag: "🇮🇳" },
-  { code: "te-IN", name: "తెలుగు", flag: "🇮🇳" },
+  { code: 'en-IN', name: 'English', flag: '🇬🇧' },
+  { code: 'hi-IN', name: 'Hindi', flag: 'हि' },
+  { code: 'bn-IN', name: 'Bengali', flag: 'বা' },
+  { code: 'gu-IN', name: 'Gujarati', flag: 'ગુ' },
+  { code: 'kn-IN', name: 'Kannada', flag: 'ಕ' },
+  { code: 'ml-IN', name: 'Malayalam', flag: 'മ' },
+  { code: 'mr-IN', name: 'Marathi', flag: 'म' },
+  { code: 'pa-IN', name: 'Punjabi', flag: 'ਪੰ' },
+  { code: 'ta-IN', name: 'Tamil', flag: 'த' },
+  { code: 'te-IN', name: 'Telugu', flag: 'తె' }
 ];
 
 const Logo = ({ showLogo }) => (
