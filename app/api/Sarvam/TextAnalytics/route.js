@@ -1,17 +1,15 @@
 export async function POST(request) {
-    const { file, prompt, model, with_diarization, num_speakers } = await request.formData();
+    const { text, questions } = await request.formData();
   
-    const url = 'https://api.sarvam.ai/speech-to-text-translate';
+    const url = 'https://api.sarvam.ai/text-analytics';
     const headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
       'API-Subscription-Key': process.env.SARVAM_API_KEY,
     };
   
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('prompt', prompt);
-    formData.append('model', model);
-    formData.append('with_diarization', with_diarization);
-    formData.append('num_speakers', num_speakers);
+    const formData = new URLSearchParams();
+    formData.append('text', text);
+    formData.append('questions', questions);
   
     try {
       const response = await fetch(url, {
