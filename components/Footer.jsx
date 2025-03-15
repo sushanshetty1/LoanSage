@@ -139,7 +139,7 @@ const Footer = () => {
 
             <p className="text-gray-400 leading-relaxed">
               Empowering financial decisions through AI-driven loan advice in
-              35+ languages. We're revolutionizing how the world accesses and
+              10 languages. We're revolutionizing how the world accesses and
               manages loans.
             </p>
 

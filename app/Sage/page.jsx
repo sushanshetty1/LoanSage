@@ -6,13 +6,9 @@ import {
   MessageCircle, 
   Globe, 
   SendHorizontal,
-  MinusCircle,
-  Maximize2,
-  Minimize2,
   Check,
   PauseCircle,
   PlayCircle,
-  Bot,
   Sparkles,
   Languages,
   Headphones,
@@ -36,7 +32,10 @@ const SageChat = () => {
   const [currentLanguage, setCurrentLanguage] = useState('English');
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [voiceOutput, setVoiceOutput] = useState('');
   const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const initialRender = useRef(true);
   
   const languages = [
     { code: 'en', name: 'English', flag: '🇬🇧' },
@@ -51,7 +50,6 @@ const SageChat = () => {
     { code: 'te', name: 'Telugu', flag: 'తె' }
   ];
 
-  // Sample loan options for demo
   const loanOptions = [
     {
       name: 'SBI Home Loan',
@@ -69,12 +67,14 @@ const SageChat = () => {
     }
   ];
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (!initialRender.current && chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    } else {
+      initialRender.current = false;
+    }
+  }, [messages.length]);
 
-  // Audio play simulation with progress bar
   useEffect(() => {
     const intervals = messages.map((message, index) => {
       if (message.isPlaying) {
@@ -98,7 +98,6 @@ const SageChat = () => {
     return () => intervals.forEach(interval => clearInterval(interval));
   }, [messages]);
 
-  // Simulate recording pulse effect
   useEffect(() => {
     let interval;
     if (isRecording) {
@@ -119,14 +118,37 @@ const SageChat = () => {
     }));
   };
 
-  const toggleRecording = () => {
+  const toggleRecording = (e) => {
+    e.preventDefault();
     setIsRecording(!isRecording);
     if (!isRecording) {
-      // Simulate recording for 3 seconds and then send a message
-      setTimeout(() => {
-        sendMessage('I need a home loan with the best interest rate. My budget is around ₹40 lakhs.');
-        setIsRecording(false);
-      }, 3000);
+      setVoiceOutput('');
+      const phrases = [
+        'I need a h',
+        'I need a home',
+        'I need a home loan',
+        'I need a home loan with',
+        'I need a home loan with the best',
+        'I need a home loan with the best interest rate',
+        'I need a home loan with the best interest rate. My budget',
+        'I need a home loan with the best interest rate. My budget is around',
+        'I need a home loan with the best interest rate. My budget is around ₹40 lakhs.'
+      ];
+      
+      let i = 0;
+      const typingInterval = setInterval(() => {
+        if (i < phrases.length) {
+          setVoiceOutput(phrases[i]);
+          i++;
+        } else {
+          clearInterval(typingInterval);
+          sendMessage('I need a home loan with the best interest rate. My budget is around ₹40 lakhs.');
+          setIsRecording(false);
+          setVoiceOutput('');
+        }
+      }, 300);
+    } else {
+      setVoiceOutput('');
     }
   };
 
@@ -137,18 +159,14 @@ const SageChat = () => {
   const sendMessage = (text = inputText) => {
     if (!text.trim()) return;
     
-    // Add user message
     setMessages([...messages, { sender: 'user', text, language: currentLanguage }]);
     setInputText('');
     
-    // Show typing indicator
     setIsTyping(true);
-    
-    // Simulate bot response after a delay
+
     setTimeout(() => {
       setIsTyping(false);
-      
-      // Add bot response with loan options for demo
+
       if (text.toLowerCase().includes('loan') || text.toLowerCase().includes('home')) {
         setMessages(prev => [...prev, {
           sender: 'bot',
@@ -172,6 +190,7 @@ const SageChat = () => {
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
       sendMessage();
     }
   };
@@ -192,12 +211,12 @@ const SageChat = () => {
   };
 
   return (
-    <div className="min-h-screen mt-10 bg-gradient-to-b from-gray-900 via-gray-800 to-black text-white">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black text-white mt-10">
       {/* Hero Section */}
       <section className="relative py-16 px-6 md:px-12 lg:px-24">
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-          <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500 rounded-full filter blur-3xl opacity-10"></div>
-          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-purple-500 rounded-full filter blur-3xl opacity-10"></div>
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500 rounded-full filter blur-3xl opacity-10 animate-pulse"></div>
+          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-purple-500 rounded-full filter blur-3xl opacity-10 animate-pulse"></div>
         </div>
         
         <div className="container mx-auto max-w-7xl relative z-10">
@@ -211,15 +230,15 @@ const SageChat = () => {
                 From home loans to investment advice, Sage makes expert financial knowledge accessible in 10 Indian languages.
               </p>
               <div className="mt-8 flex flex-wrap gap-4">
-                <div className="flex items-center space-x-2 bg-gray-800/50 backdrop-blur-sm py-2 px-4 rounded-lg border border-gray-700/30">
+                <div className="flex items-center space-x-2 bg-gray-800/50 backdrop-blur-sm py-2 px-4 rounded-lg border border-gray-700/30 hover:border-blue-500/50 transition-all">
                   <Sparkles className="h-5 w-5 text-blue-400" />
                   <span>AI-Powered Recommendations</span>
                 </div>
-                <div className="flex items-center space-x-2 bg-gray-800/50 backdrop-blur-sm py-2 px-4 rounded-lg border border-gray-700/30">
+                <div className="flex items-center space-x-2 bg-gray-800/50 backdrop-blur-sm py-2 px-4 rounded-lg border border-gray-700/30 hover:border-purple-500/50 transition-all">
                   <Languages className="h-5 w-5 text-purple-400" />
                   <span>Multilingual Support</span>
                 </div>
-                <div className="flex items-center space-x-2 bg-gray-800/50 backdrop-blur-sm py-2 px-4 rounded-lg border border-gray-700/30">
+                <div className="flex items-center space-x-2 bg-gray-800/50 backdrop-blur-sm py-2 px-4 rounded-lg border border-gray-700/30 hover:border-green-500/50 transition-all">
                   <Headphones className="h-5 w-5 text-green-400" />
                   <span>Voice Enabled</span>
                 </div>
@@ -249,7 +268,7 @@ const SageChat = () => {
           <h2 className="text-3xl font-bold text-center mb-12">How Sage Can Help You</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-gray-800/30 backdrop-blur-sm p-6 rounded-xl border border-gray-700/30 hover:border-blue-500/30 transition-colors">
+            <div className="bg-gray-800/30 backdrop-blur-sm p-6 rounded-xl border border-gray-700/30 hover:border-blue-500/30 transition-all hover:scale-105">
               <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center mb-4">
                 <Home className="h-6 w-6 text-blue-400" />
               </div>
@@ -257,7 +276,7 @@ const SageChat = () => {
               <p className="text-gray-400">Compare offers from multiple banks, understand eligibility criteria, and get personalized recommendations.</p>
             </div>
             
-            <div className="bg-gray-800/30 backdrop-blur-sm p-6 rounded-xl border border-gray-700/30 hover:border-purple-500/30 transition-colors">
+            <div className="bg-gray-800/30 backdrop-blur-sm p-6 rounded-xl border border-gray-700/30 hover:border-purple-500/30 transition-all hover:scale-105">
               <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center mb-4">
                 <Globe className="h-6 w-6 text-purple-400" />
               </div>
@@ -265,7 +284,7 @@ const SageChat = () => {
               <p className="text-gray-400">Communicate in 10 Indian languages including Hindi, Bengali, Tamil, Telugu, Gujarati, and more.</p>
             </div>
             
-            <div className="bg-gray-800/30 backdrop-blur-sm p-6 rounded-xl border border-gray-700/30 hover:border-green-500/30 transition-colors">
+            <div className="bg-gray-800/30 backdrop-blur-sm p-6 rounded-xl border border-gray-700/30 hover:border-green-500/30 transition-all hover:scale-105">
               <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center mb-4">
                 <Volume2 className="h-6 w-6 text-green-400" />
               </div>
@@ -286,7 +305,7 @@ const SageChat = () => {
           
           {/* Chat Interface */}
           <div className="bg-gradient-to-b from-gray-900 to-black border border-gray-800 rounded-2xl shadow-2xl shadow-purple-500/20 overflow-hidden">
-            {/* Chat header */}
+            {/* Chat header with current language display */}
             <div className="bg-gradient-to-r from-blue-900 to-purple-900 p-4 flex items-center space-x-3">
               <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
                 <MessageCircle className="h-5 w-5 text-white" />
@@ -295,15 +314,24 @@ const SageChat = () => {
                 <h3 className="text-white font-medium">Sage</h3>
                 <p className="text-xs text-gray-300">AI-Powered • Multilingual • Voice Support</p>
               </div>
+              
+              {/* Added: Current language display */}
               <div className="ml-auto flex items-center space-x-2">
+                <div className="text-xs bg-black/30 rounded-full px-3 py-1 flex items-center">
+                  <Globe className="h-3 w-3 mr-1.5 text-blue-400" />
+                  <span className="text-blue-300">{currentLanguage}</span>
+                </div>
                 <div className="text-xs bg-black/30 rounded-full px-3 py-1">
                   <span className="text-green-400">Powered by Sarvam AI</span>
                 </div>
               </div>
             </div>
             
-            {/* Chat content */}
-            <div className="p-4 h-80 md:h-96 overflow-y-auto bg-gradient-to-b from-gray-900/50 to-black/80 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+            {/* Chat content - add ref to the container */}
+            <div 
+              ref={chatContainerRef} 
+              className="p-4 h-80 md:h-96 overflow-y-auto bg-gradient-to-b from-gray-900/50 to-black/80 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
+            >
               {messages.map((message, index) => (
                 <div key={index} className={`mb-5 ${message.sender === 'user' ? 'ml-auto max-w-[80%]' : 'max-w-[85%]'}`}>
                   {message.sender === 'user' ? (
@@ -407,11 +435,34 @@ const SageChat = () => {
               </div>
             )}
             
+            {/* We can keep this as a marker but it won't be used for scrolling */}
             <div ref={messagesEndRef} />
           </div>
           
+          {/* Voice recording animation overlay */}
+          {isRecording && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-10">
+              <div className="relative">
+                <div className={`w-24 h-24 rounded-full bg-blue-500/20 absolute inset-0 animate-ping ${recordingPulse ? 'scale-110' : 'scale-100'}`}></div>
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center relative z-20">
+                  <Mic className="h-10 w-10 text-white animate-pulse" />
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Voice recognition output */}
+          {isRecording && (
+            <div className="p-3 border-t border-gray-800 bg-gray-900/80 backdrop-blur-sm">
+              <div className="bg-gray-800/50 rounded-lg p-3 max-h-24 overflow-y-auto">
+                <p className="text-blue-400">Listening...</p>
+                <p className="text-white">{voiceOutput}</p>
+              </div>
+            </div>
+          )}
+          
           {/* Chat input */}
-          <div className="border-t border-gray-800 p-3">
+          <div className="sticky bottom-0 border-t border-gray-800 p-3 bg-gray-900/80 backdrop-blur-sm">
             <div className="bg-gray-800/70 backdrop-blur-sm rounded-full px-4 py-2 flex items-center">
               <input 
                 type="text" 
@@ -425,12 +476,15 @@ const SageChat = () => {
                 <div className="relative">
                   <button 
                     className={`w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors ${showLanguageMenu ? 'bg-gray-600' : ''}`}
-                    onClick={() => setShowLanguageMenu(!showLanguageMenu)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowLanguageMenu(!showLanguageMenu);
+                    }}
                   >
                     <Globe className="h-4 w-4" />
                   </button>
                   
-                  {/* Language selection menu */}
+                  {/* Language selection menu with current language indicator */}
                   {showLanguageMenu && (
                     <div className="absolute bottom-full right-0 mb-2 bg-gray-800 rounded-lg shadow-lg border border-gray-700 p-2 w-40 z-10">
                       <div className="max-h-40 overflow-y-auto">
@@ -460,8 +514,11 @@ const SageChat = () => {
                 </button>
                 
                 <button 
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-purple-700/20"
-                  onClick={() => sendMessage()}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-purple-700/20 hover:shadow-purple-700/40 transition-all"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    sendMessage();
+                  }}
                 >
                   <SendHorizontal className="h-4 w-4" />
                 </button>

@@ -344,12 +344,11 @@ const Hero = () => {
             <div className="h-1 w-16 sm:w-20 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto"></div>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
             {[
               { icon: Globe, name: "Sarvam AI", desc: "Multilingual Support" },
               { icon: Shield, name: "Zero-Trust", desc: "Secure Banking" },
-              { icon: BarChart, name: "OpenBanking", desc: "Real-time Rates" },
-              { icon: Zap, name: "Krutrim AI", desc: "Voice Technology" }
+              { icon: BarChart, name: "OpenBanking", desc: "Real-time Rates" }
             ].map((tech, idx) => (
               <motion.div
                 key={idx}
