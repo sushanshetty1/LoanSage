@@ -5,7 +5,7 @@ import { Github, Linkedin, Mail, Globe } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image"; // Import the Image component from Next.js
 import Sushan from "@/public/Sushan.jpg"; // Import the image correctly
-import Sharva from "@/public/sharva.jpg";
+import Sharva from "@/public/Sharva.jpg";
 const AboutUs = () => {
   const teamMembers = [
     {
