@@ -14,8 +14,13 @@ import {
   Headphones,
   Home
 } from 'lucide-react';
+import { db, auth } from '@/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const SageChat = () => {
+  const [user, setUser] = useState(null);
+  
   const [messages, setMessages] = useState([
     {
       sender: 'bot',
@@ -28,20 +33,27 @@ const SageChat = () => {
   ]);
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  // Add new state for tracking continuous voice interaction
+  const [isVoiceActive, setIsVoiceActive] = useState(false);
+  // Track if we're in listening mode or response mode
+  const [voiceInteractionState, setVoiceInteractionState] = useState('idle'); // 'listening', 'processing', 'responding'
   const [recordingPulse, setRecordingPulse] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('English');
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [voiceOutput, setVoiceOutput] = useState('');
+  const [voiceAmplitude, setVoiceAmplitude] = useState(0);
+  const [orbAnimationFrame, setOrbAnimationFrame] = useState(0);
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const initialRender = useRef(true);
+  const voiceVisualizerRef = useRef(null);
   
   const languages = [
     { code: 'en', name: 'English', flag: '🇬🇧' },
     { code: 'hi', name: 'Hindi', flag: 'हि' },
-    { code: 'bn', name: 'Bengali', flag: 'বা' },
-    { code: 'gu', name: 'Gujarati', flag: 'ગુ' },
+    { code: 'bn', name: 'Bengali', flag: 'বा' },
+    { code: 'gu', name: 'Gujarati', flag: 'ગु' },
     { code: 'kn', name: 'Kannada', flag: 'ಕ' },
     { code: 'ml', name: 'Malayalam', flag: 'മ' },
     { code: 'mr', name: 'Marathi', flag: 'म' },
@@ -50,22 +62,40 @@ const SageChat = () => {
     { code: 'te', name: 'Telugu', flag: 'తె' }
   ];
 
-  const loanOptions = [
-    {
-      name: 'SBI Home Loan',
-      provider: 'State Bank of India',
-      rate: '8.70%',
-      features: ['No processing fee', '30 year term'],
-      best: false
-    },
-    {
-      name: 'HDFC Bank Home Loan',
-      provider: 'HDFC Bank',
-      rate: '8.50%',
-      features: ['₹2,500 processing fee', '25 year term'],
-      best: true
-    }
-  ];
+  // Listen for authentication state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        // Get user data from Firestore
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUser(userData);
+          
+          // Update current language from user data if available
+          if (userData.lang) {
+            setCurrentLanguage(userData.lang);
+          }
+          
+          // Update welcome message with user's name
+          if (userData.name) {
+            setMessages([{
+              sender: 'bot',
+              text: `नमस्ते ${userData.name}! मैं आपका Sage सलाहकार हूं। आज मैं आपकी कैसे मदद कर सकता हूं?`,
+              translation: `Hello ${userData.name}! I'm your Sage. How can I help you today?`,
+              language: 'Hindi & English',
+              isPlaying: false,
+              progressBar: 0
+            }]);
+          }
+        }
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!initialRender.current && chatContainerRef.current) {
@@ -98,15 +128,61 @@ const SageChat = () => {
     return () => intervals.forEach(interval => clearInterval(interval));
   }, [messages]);
 
+  // Simulate voice amplitude changes when in voice active mode
+  useEffect(() => {
+    let animationFrameId;
+    let lastUpdate = 0;
+    let updateInterval = 50; // ms between updates
+
+    if (isVoiceActive) {
+      const simulateVoiceAmplitude = (timestamp) => {
+        if (timestamp - lastUpdate > updateInterval) {
+          // Generate different amplitudes based on the voice interaction state
+          let newAmplitude;
+          if (isRecording) {
+            // Higher amplitude when recording/listening
+            newAmplitude = 0.2 + Math.random() * 0.8;
+          } else if (voiceInteractionState === 'processing') {
+            // Medium amplitude when processing
+            newAmplitude = 0.1 + Math.random() * 0.3;
+          } else if (voiceInteractionState === 'responding') {
+            // Rhythmic amplitude when responding
+            newAmplitude = 0.3 + Math.sin(timestamp/200) * 0.4;
+          } else {
+            // Low idle amplitude
+            newAmplitude = 0.05 + Math.random() * 0.15;
+          }
+          
+          setVoiceAmplitude(newAmplitude);
+          lastUpdate = timestamp;
+          
+          // Update orb animation frame
+          setOrbAnimationFrame(prev => (prev + 1) % 5);
+        }
+        animationFrameId = requestAnimationFrame(simulateVoiceAmplitude);
+      };
+      
+      animationFrameId = requestAnimationFrame(simulateVoiceAmplitude);
+    } else {
+      setVoiceAmplitude(0);
+    }
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [isVoiceActive, isRecording, voiceInteractionState]);
+
   useEffect(() => {
     let interval;
-    if (isRecording) {
+    if (isRecording || voiceInteractionState === 'responding') {
       interval = setInterval(() => {
         setRecordingPulse(prev => !prev);
       }, 500);
     }
     return () => clearInterval(interval);
-  }, [isRecording]);
+  }, [isRecording, voiceInteractionState]);
 
   const toggleAudio = (index) => {
     setMessages(messages.map((message, i) => {
@@ -118,11 +194,18 @@ const SageChat = () => {
     }));
   };
 
+  // Update the toggle recording function to manage both recording and active states
   const toggleRecording = (e) => {
     e.preventDefault();
-    setIsRecording(!isRecording);
-    if (!isRecording) {
+    
+    if (!isVoiceActive) {
+      // Start voice interaction mode
+      setIsVoiceActive(true);
+      setIsRecording(true);
+      setVoiceInteractionState('listening');
       setVoiceOutput('');
+      
+      // Simulate voice recognition with staged text output
       const phrases = [
         'I need a h',
         'I need a home',
@@ -142,14 +225,70 @@ const SageChat = () => {
           i++;
         } else {
           clearInterval(typingInterval);
-          sendMessage('I need a home loan with the best interest rate. My budget is around ₹40 lakhs.');
+          // User finished speaking - transition to processing
           setIsRecording(false);
-          setVoiceOutput('');
+          setVoiceInteractionState('processing');
+          
+          // Then after a brief delay, transition to responding
+          setTimeout(() => {
+            setVoiceInteractionState('responding');
+            // Process the message but keep voice interaction active
+            processVoiceMessage('I need a home loan with the best interest rate. My budget is around ₹40 lakhs.');
+          }, 1000);
         }
       }, 300);
+    } else if (isRecording) {
+      // If already recording, stop recording but stay in voice active mode
+      setIsRecording(false);
+      setVoiceInteractionState('processing');
+      setVoiceOutput('Processing your request...');
+      
+      // Simulate processing delay then transition to responding
+      setTimeout(() => {
+        setVoiceInteractionState('responding');
+        // Process with whatever was captured so far
+        processVoiceMessage(voiceOutput || "Looking for loan options");
+      }, 1000);
     } else {
+      // If voice active but not recording, start a new recording
+      setIsRecording(true);
+      setVoiceInteractionState('listening');
       setVoiceOutput('');
     }
+  };
+  
+  // Add a dedicated method to cancel voice interaction
+  const cancelVoiceInteraction = () => {
+    setIsVoiceActive(false);
+    setIsRecording(false);
+    setVoiceInteractionState('idle');
+    setVoiceOutput('');
+  };
+  
+  // Add a method to process voice messages that maintains the voice active state
+  const processVoiceMessage = (text) => {
+    if (!text.trim()) return;
+    
+    setMessages(prev => [...prev, { sender: 'user', text, language: currentLanguage }]);
+    
+    // Simulate AI thinking/processing
+    setTimeout(() => {
+      // Add AI response
+      setMessages(prev => [...prev, {
+        sender: 'bot',
+        text: 'I understand you\'re looking for a home loan with a good interest rate for a budget of ₹40 lakhs. Would you like me to suggest some options based on your credit profile?',
+        language: currentLanguage,
+        isPlaying: false,
+        progressBar: 0
+      }]);
+      
+      // After response is given, transition back to listening mode
+      setTimeout(() => {
+        setVoiceInteractionState('listening');
+        setIsRecording(true);
+        setVoiceOutput(''); // Reset for next input
+      }, 1000);
+    }, 1500);
   };
 
   const handleInputChange = (e) => {
@@ -164,27 +303,16 @@ const SageChat = () => {
     
     setIsTyping(true);
 
+    // Simple response without loan-related content
     setTimeout(() => {
       setIsTyping(false);
-
-      if (text.toLowerCase().includes('loan') || text.toLowerCase().includes('home')) {
-        setMessages(prev => [...prev, {
-          sender: 'bot',
-          text: 'I can help you find the best home loan options for ₹40 lakhs. Based on your profile, here are some recommendations:',
-          language: currentLanguage,
-          loanOptions: loanOptions,
-          isPlaying: false,
-          progressBar: 0
-        }]);
-      } else {
-        setMessages(prev => [...prev, {
-          sender: 'bot',
-          text: 'I can assist you with various financial products including home loans, personal loans, and business loans. Would you like to know more about any specific loan type?',
-          language: currentLanguage,
-          isPlaying: false,
-          progressBar: 0
-        }]);
-      }
+      setMessages(prev => [...prev, {
+        sender: 'bot',
+        text: 'I understand your message. How else can I assist you today?',
+        language: currentLanguage,
+        isPlaying: false,
+        progressBar: 0
+      }]);
     }, 1500);
   };
 
@@ -195,19 +323,56 @@ const SageChat = () => {
     }
   };
 
-  const selectLanguage = (language) => {
+  // Modified to update user language preference in Firebase
+  const selectLanguage = async (language) => {
     setCurrentLanguage(language.name);
     setShowLanguageMenu(false);
+    
+    // Update user language preference in Firebase if user is authenticated
+    if (user && auth.currentUser) {
+      try {
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+          lang: language.name
+        });
+        console.log('User language preference updated successfully');
+      } catch (error) {
+        console.error('Error updating user language preference:', error);
+      }
+    }
   };
-  
-  const handleDetailsButtonClick = (option) => {
-    setMessages([...messages, {
-      sender: 'bot',
-      text: `Here are more details about ${option.name}: \n\n• Interest Rate: ${option.rate} \n• Provider: ${option.provider} \n• EMI for ₹40 lakhs: Approximately ₹31,460/month for 20 years \n• Eligibility: Minimum income of ₹75,000/month \n• Documentation: ID proof, address proof, income proof, and property documents`,
-      language: currentLanguage,
-      isPlaying: false,
-      progressBar: 0
-    }]);
+
+  // Generate orb blob path based on voice amplitude and interaction state
+  const generateBlobPath = () => {
+    if (!isVoiceActive) return "M50,10 A40,40 0 1,1 49.9,10 Z";
+    
+    const points = 8;
+    let amplitude = 15 * voiceAmplitude;
+    
+    // Adjust amplitude based on interaction state
+    if (voiceInteractionState === 'processing') {
+      amplitude *= 0.5; // Subtler movement when processing
+    } else if (voiceInteractionState === 'responding') {
+      amplitude *= 1.2; // More pronounced when responding
+    }
+    
+    let path = "M";
+    
+    for (let i = 0; i < points; i++) {
+      const angle = (i / points) * Math.PI * 2;
+      const variance = Math.random() * amplitude;
+      const radius = 40 + variance;
+      const x = 50 + Math.cos(angle) * radius;
+      const y = 50 + Math.sin(angle) * radius;
+      
+      if (i === 0) {
+        path += `${x},${y}`;
+      } else {
+        path += ` A${radius},${radius} 0 0,1 ${x},${y}`;
+      }
+    }
+    
+    path += " Z";
+    return path;
   };
 
   return (
@@ -265,7 +430,7 @@ const SageChat = () => {
       {/* Features Section */}
       <section className="py-12 px-6 md:px-12 lg:px-24 bg-black/30">
         <div className="container mx-auto max-w-7xl">
-          <h2 className="text-3xl font-bold text-center mb-12">How Sage Can Help You</h2>
+        <h2 className="text-3xl font-bold text-center mb-12">How Sage Can Help You</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-gray-800/30 backdrop-blur-sm p-6 rounded-xl border border-gray-700/30 hover:border-blue-500/30 transition-all hover:scale-105">
@@ -342,7 +507,7 @@ const SageChat = () => {
                       <div className="flex items-center justify-end mt-2 text-xs text-gray-500">
                         <span className="mr-2">Just now</span>
                         <span>•</span>
-                        <span className="ml-2 font-medium">You</span>
+                        <span className="ml-2 font-medium">{user?.name || 'You'}</span>
                       </div>
                     </>
                   ) : (
@@ -350,46 +515,6 @@ const SageChat = () => {
                       <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl rounded-tl-none p-4 border border-gray-700/50 shadow-sm">
                         {message.text && <p className="text-gray-200">{message.text}</p>}
                         {message.translation && <p className="text-gray-200 mt-2">{message.translation}</p>}
-                        
-                        {message.loanOptions && (
-                          <div className="space-y-3 mt-3">
-                            {message.loanOptions.map((option, loanIndex) => (
-                              <div key={loanIndex} className={`bg-gray-700/50 p-3 rounded-lg border ${option.best ? 'border-blue-500/50 shadow-sm' : 'border-gray-600/50 hover:border-blue-500/50 transition-colors'} cursor-pointer relative overflow-visible`}>
-                                {option.best && (
-                                  <div className="absolute -top-2 -right-2">
-                                    <div className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-md">
-                                      Best Rate
-                                    </div>
-                                  </div>
-                                )}
-                                <div className="flex justify-between items-start">
-                                  <div>
-                                    <h4 className="text-blue-400 font-medium">{option.name}</h4>
-                                    <p className="text-xs text-gray-300 mt-1">{option.provider}</p>
-                                  </div>
-                                  <span className="text-emerald-400 font-bold">{option.rate}</span>
-                                </div>
-                                <div className="mt-2 text-xs text-gray-300 flex space-x-4">
-                                  {option.features.map((feature, featIndex) => (
-                                    <span key={featIndex} className="flex items-center">
-                                      <Check className="h-3 w-3 mr-1 text-emerald-400" /> {feature}
-                                    </span>
-                                  ))}
-                                </div>
-                                <button 
-                                  onClick={() => handleDetailsButtonClick(option)}
-                                  className="mt-2 text-xs bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 px-3 py-1 rounded-md transition-colors"
-                                >
-                                  View Details
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        
-                        {!message.loanOptions && message.sender === 'bot' && (
-                          <p className="text-gray-300 mt-3 text-sm">Would you like more details on any financial products?</p>
-                        )}
                         
                         {/* Audio playback option */}
                         <div className="mt-3 flex items-center space-x-2">
@@ -439,24 +564,137 @@ const SageChat = () => {
             <div ref={messagesEndRef} />
           </div>
           
-          {/* Voice recording animation overlay */}
-          {isRecording && (
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-10">
-              <div className="relative">
-                <div className={`w-24 h-24 rounded-full bg-blue-500/20 absolute inset-0 animate-ping ${recordingPulse ? 'scale-110' : 'scale-100'}`}></div>
-                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center relative z-20">
-                  <Mic className="h-10 w-10 text-white animate-pulse" />
+          {/* Voice orb animation overlay - ENHANCED VOICE ORB UI */}
+          {isVoiceActive && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="flex flex-col items-center">
+                {/* Dynamic Voice Orb */}
+                <div className="relative w-64 h-64">
+                  {/* Outer glow effect */}
+                  <div className={`absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 filter blur-xl opacity-30 ${recordingPulse ? 'scale-110' : 'scale-100'} transition-all duration-300`}></div>
+                  
+                  {/* SVG Voice Visualizer */}
+                  <div ref={voiceVisualizerRef} className="absolute inset-0 flex items-center justify-center">
+                    <svg width="100%" height="100%" viewBox="0 0 100 100">
+                      {/* Background gradient */}
+                      <defs>
+                        <linearGradient id="orbGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#3B82F6" />
+                          <stop offset="100%" stopColor="#8B5CF6" />
+                        </linearGradient>
+                        <filter id="glow">
+                          <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                          <feMerge>
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                          </feMerge>
+                        </filter>
+                      </defs>
+                      
+                      {/* Pulsing rings */}
+                      {[...Array(3)].map((_, i) => (
+                        <circle 
+                          key={i} 
+                          cx="50" 
+                          cy="50" 
+                          r={40 + i * 10} 
+                          fill="none" 
+                          stroke="url(#orbGradient)" 
+                          strokeWidth="0.5" 
+                          strokeOpacity={0.3 - i * 0.1}
+                          className={`animate-ping`} 
+                          style={{ animationDuration: `${3 + i * 0.5}s` }}
+                        />
+                      ))}
+                      
+                      {/* Dynamic blob shape that morphs with voice */}
+                      <path 
+                        d={generateBlobPath()} 
+                        fill="url(#orbGradient)" 
+                        filter="url(#glow)"
+                        className="transition-all duration-100"
+                      />
+                      
+                      {/* Center icon - changes based on voice state */}
+                      <circle cx="50" cy="50" r="15" fill="#111827" />
+                      <g transform="translate(38, 38) scale(0.25)">
+                        {isRecording ? (
+                          <div className="animate-pulse">
+                            <circle cx="24" cy="24" r="24" fill="none" stroke="white" strokeWidth="4" />
+                          </div>
+                        ) : voiceInteractionState === 'processing' ? (
+                          <div className="animate-spin">
+                            <circle cx="24" cy="24" r="24" fill="none" stroke="white" strokeWidth="4" strokeDasharray="60" strokeDashoffset="20" />
+                          </div>
+                        ) : (
+                          <div className="animate-pulse">
+                            <circle cx="24" cy="24" r="24" fill="none" stroke="white" strokeWidth="4" />
+                          </div>
+                        )}
+                      </g>
+                    </svg>
+                  </div>
+                  
+                  {/* Sound wave visualization circles */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    {[...Array(8)].map((_, i) => {
+                      const size = Math.max(5, 15 * voiceAmplitude);
+                      const angle = (i / 8) * Math.PI * 2;
+                      const x = Math.cos(angle) * 55;
+                      const y = Math.sin(angle) * 55;
+                      const delay = i * 0.1;
+                      
+                      return (
+                        <div 
+                          key={i}
+                          className="absolute bg-white rounded-full"
+                          style={{
+                            width: `${size}px`,
+                            height: `${size}px`,
+                            transform: `translate(${x}px, ${y}px)`,
+                            opacity: 0.6,
+                            transitionDelay: `${delay}s`,
+                            transition: 'all 150ms ease-out'
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Voice recognition output */}
-          {isRecording && (
-            <div className="p-3 border-t border-gray-800 bg-gray-900/80 backdrop-blur-sm">
-              <div className="bg-gray-800/50 rounded-lg p-3 max-h-24 overflow-y-auto">
-                <p className="text-blue-400">Listening...</p>
-                <p className="text-white">{voiceOutput}</p>
+                
+                {/* Voice output text - changes based on state */}
+                <div className="mt-8 max-w-md bg-gray-800/70 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
+                  <p className="text-blue-400 text-center font-medium mb-2">
+                    {isRecording ? "Listening..." : 
+                     voiceInteractionState === 'processing' ? "Processing..." : 
+                     "Responding..."}
+                  </p>
+                  <p className="text-white text-center text-lg">
+                    {voiceOutput || (isRecording ? "Speak now..." : 
+                     voiceInteractionState === 'processing' ? "Analyzing your request..." : 
+                     "Here's what I found...")}
+                  </p>
+                </div>
+                
+                {/* Control buttons - now includes cancel and toggle mic buttons */}
+                <div className="mt-6 flex space-x-4">
+                  <button 
+                    onClick={cancelVoiceInteraction}
+                    className="px-6 py-2 bg-gray-800/70 backdrop-blur-sm rounded-full border border-gray-700/50 text-white hover:bg-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  
+                  {/* Only show toggle mic button if in responding state */}
+                  {voiceInteractionState === 'responding' && (
+                    <button 
+                      onClick={toggleRecording}
+                      className="px-6 py-2 bg-blue-600/70 backdrop-blur-sm rounded-full border border-blue-500/50 text-white hover:bg-blue-500 transition-colors"
+                    >
+                      Speak Again
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -488,7 +726,7 @@ const SageChat = () => {
                   {showLanguageMenu && (
                     <div className="absolute bottom-full right-0 mb-2 bg-gray-800 rounded-lg shadow-lg border border-gray-700 p-2 w-40 z-10">
                       <div className="max-h-40 overflow-y-auto">
-                        {languages.map((lang) => (
+                      {languages.map((lang) => (
                           <div 
                             key={lang.code}
                             className={`flex items-center p-2 hover:bg-gray-700 rounded cursor-pointer ${currentLanguage === lang.name ? 'bg-gray-700' : ''}`}
@@ -507,7 +745,7 @@ const SageChat = () => {
                 </div>
                 
                 <button 
-                  className={`w-8 h-8 flex items-center justify-center rounded-full ${isRecording ? 'bg-red-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} transition-colors ${recordingPulse && isRecording ? 'animate-pulse' : ''}`}
+                  className={`w-8 h-8 flex items-center justify-center rounded-full ${isVoiceActive ? 'bg-red-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} transition-colors ${recordingPulse && isVoiceActive ? 'animate-pulse' : ''}`}
                   onClick={toggleRecording}
                 >
                   <Mic className="h-4 w-4" />
