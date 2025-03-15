@@ -1,243 +1,266 @@
-// components/DashboardPopup.js
-import { useState } from 'react';
-import { useRouter } from 'next/router';
+"use client"
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '@/firebase';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { motion } from 'framer-motion';
 
-export default function DashboardPopup({ isOpen, onClose }) {
-  const router = useRouter();
-  
-  // Sample loan offers data - replace with your API call
-  const [loanOffers, setLoanOffers] = useState([
-    {
-      id: 1,
-      bankName: "HDFC Bank",
-      interestRate: 7.5,
-      maxAmount: 5000000,
-      tenure: "Up to 20 years",
-      processingFee: "0.5% of loan amount",
-      eligibility: "CIBIL score above 750",
-      featured: true,
-    },
-    {
-      id: 2,
-      bankName: "SBI",
-      interestRate: 7.75,
-      maxAmount: 7500000,
-      tenure: "Up to 30 years",
-      processingFee: "0.35% of loan amount",
-      eligibility: "CIBIL score above 700",
-      featured: false,
-    },
-    {
-      id: 3,
-      bankName: "ICICI Bank",
-      interestRate: 7.6,
-      maxAmount: 6000000,
-      tenure: "Up to 25 years",
-      processingFee: "0.5% of loan amount",
-      eligibility: "CIBIL score above 730",
-      featured: true,
-    },
-    {
-      id: 4,
-      bankName: "Axis Bank",
-      interestRate: 7.65,
-      maxAmount: 5500000,
-      tenure: "Up to 25 years",
-      processingFee: "0.45% of loan amount",
-      eligibility: "CIBIL score above 720",
-      featured: false,
-    },
-    {
-      id: 5,
-      bankName: "Kotak Mahindra",
-      interestRate: 7.7,
-      maxAmount: 4500000,
-      tenure: "Up to 20 years",
-      processingFee: "0.5% of loan amount",
-      eligibility: "CIBIL score above 740",
-      featured: false,
-    }
-  ]);
+export default function Dashboard() {
+  const [user, loading] = useAuthState(auth);
+  const [userType, setUserType] = useState(null);
+  const [loanApplications, setLoanApplications] = useState([]);
+  const [loanOffers, setLoanOffers] = useState([]);
+  const [profileStats, setProfileStats] = useState(null);
+  const [userData, setUserData] = useState(null); // State to store user data
+  const [formData, setFormData] = useState({}); // State to store form data
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false); // State for success message
 
-  const [filters, setFilters] = useState({
-    loanType: "all",
-    sortBy: "interestRate",
-    minAmount: 1000000,
-    maxAmount: 10000000,
-  });
+  // Fetch user data on component load
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user) {
+        try {
+          // Hardcoded data for testing
+          const hardcodedData = {
+            age: 30,
+            employmentType: "Full-time",
+            yearsOfExperience: 5,
+            industryType: "IT",
+            employerCategory: "Corporate",
+            monthlyIncome: 80000,
+            existingEMI: 15000,
+            creditScore: 750,
+            bankBalance: 200000,
+            loanPurpose: "Home Loan",
+            requestedLoanAmount: 5000000,
+            preferredRepaymentPeriod: 20,
+            willingnessForCollateral: true,
+            fixedExpenses: 30000,
+            variableExpenses: 20000,
+            spendingBehavior: "Disciplined",
+            investmentStrategy: "Moderate",
+            financialStability: "Stable",
+            paymentConsistency: "Consistent",
+            financialAdaptability: "High"
+          };
 
-  // Filter offers based on user selection
-  const filteredOffers = loanOffers
-    .sort((a, b) => {
-      if (filters.sortBy === "interestRate") {
-        return a.interestRate - b.interestRate;
-      } else if (filters.sortBy === "maxAmount") {
-        return b.maxAmount - a.maxAmount;
+          console.log("Using hardcoded data:", hardcodedData); // Log hardcoded data
+          setUserData({ id: "hardcodedId", ...hardcodedData });
+          setFormData(hardcodedData);
+          setUserType("user");
+          setProfileStats({
+            completionPercentage: 100,
+            eligibilityScore: 90,
+            pendingDocuments: 0,
+            savedOffers: 0
+          });
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
       }
-      return 0;
-    });
+    };
 
-  if (!isOpen) return null;
+    fetchUserData();
+  }, [user]);
+
+  // Fetch loan data based on user type
+  useEffect(() => {
+    const fetchLoanData = async () => {
+      if (user && userType) {
+        try {
+          if (userType === "user") {
+            const q = query(collection(db, "loanApplications"), where("userId", "==", user.uid));
+            const querySnapshot = await getDocs(q);
+            const applications = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setLoanApplications(applications);
+          } else if (userType === "bank") {
+            const q = query(collection(db, "loanOffers"), where("bankId", "==", user.uid));
+            const querySnapshot = await getDocs(q);
+            const offers = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setLoanOffers(offers);
+          }
+        } catch (error) {
+          console.error("Error fetching loan data:", error);
+        }
+      }
+    };
+
+    fetchLoanData();
+  }, [user, userType]);
+
+  // Handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!userData) return;
+
+    try {
+      const userDocRef = doc(db, "users", userData.id); // Reference to the user document
+      await updateDoc(userDocRef, formData); // Update the document with form data
+      setUserData({ ...userData, ...formData }); // Update local state
+      console.log("Personal details updated successfully!");
+
+      // Show success message
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000); // Hide message after 3 seconds
+    } catch (error) {
+      console.error("Error updating personal details:", error);
+    }
+  };
+
+  if (loading) {
+    return <div className="text-white text-center p-10">Loading...</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="text-white text-center p-10">
+        <h1>Please sign in to access your dashboard</h1>
+        <Link href="/login" className="text-blue-400 underline">Go to Login</Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-xl w-11/12 max-w-5xl max-h-[90vh] overflow-y-auto">
-        {/* Dashboard Header with Back Button */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-800">
-          <h2 className="text-2xl font-bold text-white">Loan Offers Dashboard</h2>
-          <button 
-            onClick={onClose}
-            className="flex items-center text-gray-300 hover:text-white"
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white">
+      {/* Navbar */}
+      <nav className="p-4 bg-gray-900/80 backdrop-blur-md border-b border-gray-800">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-blue-400">LoanSage</h1>
+          <div className="text-gray-300">{user.displayName || 'User'}</div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="p-6 max-w-7xl mx-auto">
+        {/* Welcome Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 p-6 rounded-lg border border-gray-800/50 shadow-lg"
+        >
+          <h2 className="text-2xl font-bold">Welcome, {user.displayName || 'User'}!</h2>
+          <p className="text-gray-300 mt-2">
+            {userType === "user" ? "Track your loans and explore offers." : "Manage loan applications and offers."}
+          </p>
+        </motion.div>
+
+        {/* Personal Details Form */}
+        {userData && Object.keys(formData).length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="mt-8"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Home
-          </button>
-        </div>
+            <h3 className="text-xl font-bold mb-4">Personal Details</h3>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {Object.entries(formData).map(([key, value]) => {
+                if (key === "id" || key === "uid" || key === "userType") return null; // Skip non-editable fields
+                return (
+                  <motion.div
+                    key={key}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                    className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:bg-gray-800/70 transition-all"
+                  >
+                    <label className="text-gray-300 text-sm">{key}</label>
+                    <input
+                      type="text"
+                      name={key}
+                      value={value || ""}
+                      onChange={handleInputChange}
+                      className="w-full mt-2 p-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </motion.div>
+                );
+              })}
+              <motion.button
+                type="submit"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="col-span-full p-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
+              >
+                Save Personal Details
+              </motion.button>
+            </form>
 
-        <div className="p-6">
-          {/* Filters */}
-          <div className="bg-gray-800 rounded-xl p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-white">Filter Loan Offers</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div>
-                <label htmlFor="loanType" className="block text-sm font-medium text-gray-400 mb-2">Loan Type</label>
-                <select 
-                  id="loanType"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  value={filters.loanType}
-                  onChange={(e) => setFilters({...filters, loanType: e.target.value})}
-                >
-                  <option value="all">All Types</option>
-                  <option value="home">Home Loan</option>
-                  <option value="personal">Personal Loan</option>
-                  <option value="business">Business Loan</option>
-                  <option value="education">Education Loan</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="sortBy" className="block text-sm font-medium text-gray-400 mb-2">Sort By</label>
-                <select 
-                  id="sortBy"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  value={filters.sortBy}
-                  onChange={(e) => setFilters({...filters, sortBy: e.target.value})}
-                >
-                  <option value="interestRate">Interest Rate (Low to High)</option>
-                  <option value="maxAmount">Loan Amount (High to Low)</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="minAmount" className="block text-sm font-medium text-gray-400 mb-2">Min Amount (₹)</label>
-                <input 
-                  type="range" 
-                  id="minAmount"
-                  min="100000" 
-                  max="5000000" 
-                  step="100000"
-                  value={filters.minAmount}
-                  onChange={(e) => setFilters({...filters, minAmount: parseInt(e.target.value)})}
-                  className="w-full accent-purple-500 bg-gray-700"
-                />
-                <div className="text-sm text-gray-400 mt-1">₹{(filters.minAmount/100000).toFixed(1)} Lakhs</div>
-              </div>
-              <div>
-                <label htmlFor="maxAmount" className="block text-sm font-medium text-gray-400 mb-2">Max Amount (₹)</label>
-                <input 
-                  type="range" 
-                  id="maxAmount"
-                  min="1000000" 
-                  max="10000000" 
-                  step="500000"
-                  value={filters.maxAmount}
-                  onChange={(e) => setFilters({...filters, maxAmount: parseInt(e.target.value)})}
-                  className="w-full accent-purple-500 bg-gray-700"
-                />
-                <div className="text-sm text-gray-400 mt-1">₹{(filters.maxAmount/100000).toFixed(1)} Lakhs</div>
-              </div>
-            </div>
-          </div>
+            {/* Success Message */}
+            {showSuccessMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="mt-4 p-4 bg-green-600/50 border border-green-700/50 rounded-lg text-white text-center"
+              >
+                Personal details saved successfully!
+              </motion.div>
+            )}
+          </motion.div>
+        )}
 
-          {/* Featured Offers */}
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-white">Featured Offers</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredOffers.filter(offer => offer.featured).map(offer => (
-                <div key={offer.id} className="bg-gradient-to-r from-purple-900 to-blue-900 rounded-xl p-6 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 bg-purple-500 px-3 py-1 text-xs font-medium rounded-bl-lg">
-                    FEATURED
-                  </div>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-lg font-bold text-white">{offer.bankName}</h3>
-                      <div className="text-3xl font-bold mt-2 mb-1 text-white">
-                        {offer.interestRate}% <span className="text-sm text-gray-300">p.a.</span>
-                      </div>
-                      <div className="text-sm text-gray-300">Up to ₹{(offer.maxAmount/100000).toFixed(1)} Lakhs</div>
-                    </div>
-                    <div className="h-12 w-12 rounded-lg bg-white bg-opacity-10 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <div className="text-sm text-gray-400">Tenure</div>
-                      <div className="text-sm font-medium text-white">{offer.tenure}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-400">Processing Fee</div>
-                      <div className="text-sm font-medium text-white">{offer.processingFee}</div>
-                    </div>
-                  </div>
-                  <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-md mt-4 focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-150">
-                    Apply Now
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* All Offers */}
-          <div>
-            <h2 className="text-xl font-semibold mb-4 text-white">All Loan Offers</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-800 text-left">
-                    <th className="py-3 px-4 font-medium text-gray-300">Bank</th>
-                    <th className="py-3 px-4 font-medium text-gray-300">Interest Rate</th>
-                    <th className="py-3 px-4 font-medium text-gray-300">Max Loan Amount</th>
-                    <th className="py-3 px-4 font-medium text-gray-300">Tenure</th>
-                    <th className="py-3 px-4 font-medium text-gray-300">Processing Fee</th>
-                    <th className="py-3 px-4 font-medium text-gray-300">Eligibility</th>
-                    <th className="py-3 px-4 font-medium text-gray-300"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOffers.map(offer => (
-                    <tr key={offer.id} className="border-b border-gray-700 hover:bg-gray-800">
-                      <td className="py-4 px-4 font-medium text-white">{offer.bankName}</td>
-                      <td className="py-4 px-4 text-purple-400 font-medium">{offer.interestRate}%</td>
-                      <td className="py-4 px-4 text-white">₹{(offer.maxAmount/100000).toFixed(1)} Lakhs</td>
-                      <td className="py-4 px-4 text-white">{offer.tenure}</td>
-                      <td className="py-4 px-4 text-white">{offer.processingFee}</td>
-                      <td className="py-4 px-4 text-white">{offer.eligibility}</td>
-                      <td className="py-4 px-4">
-                        <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-150">
-                          Apply
-                        </button>
-                      </td>
-                    </tr>
+        {/* Loan Applications/Offers Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="mt-8"
+        >
+          {userType === "user" ? (
+            <section>
+              <h3 className="text-xl font-bold mb-4">Your Loan Applications</h3>
+              {loanApplications.length > 0 ? (
+                <div className="space-y-4">
+                  {loanApplications.map((loan) => (
+                    <motion.div
+                      key={loan.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.6 }}
+                      className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:bg-gray-800/70 transition-all"
+                    >
+                      <h4 className="text-lg font-semibold">{loan.loanType}</h4>
+                      <p className="text-gray-300">Status: {loan.status}</p>
+                    </motion.div>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
+                </div>
+              ) : (
+                <p className="text-gray-400">No loan applications found.</p>
+              )}
+            </section>
+          ) : (
+            <section>
+              <h3 className="text-xl font-bold mb-4">Your Loan Offers</h3>
+              {loanOffers.length > 0 ? (
+                <div className="space-y-4">
+                  {loanOffers.map((offer) => (
+                    <motion.div
+                      key={offer.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.6 }}
+                      className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-lg hover:bg-gray-800/70 transition-all"
+                    >
+                      <h4 className="text-lg font-semibold">{offer.loanType}</h4>
+                      <p className="text-gray-300">Interest Rate: {offer.interestRate}%</p>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400">No loan offers found.</p>
+              )}
+            </section>
+          )}
+        </motion.div>
+      </main>
     </div>
   );
 }
