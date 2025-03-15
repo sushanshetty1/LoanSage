@@ -1,4 +1,4 @@
-import { translateText } from '../../utils/apiClient';
+import { translateText } from '@/utils/apiClient';
 
 export default async function handler(req, res) {
     if (req.method === 'POST') {
