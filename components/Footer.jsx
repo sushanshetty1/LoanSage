@@ -275,7 +275,7 @@ const Footer = () => {
               <FooterLink href="/Security">
                 <Shield size={14} className="inline mr-1" /> Security
               </FooterLink>
-              <FooterLink href="/Sitemap">
+              <FooterLink href="/SiteMap">
                 <Globe size={14} className="inline mr-1" /> Sitemap
               </FooterLink>
             </div>
