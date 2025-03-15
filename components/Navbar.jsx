@@ -49,6 +49,7 @@ const languageOptions = [
 ];
 
 const Logo = ({ showLogo }) => (
+    <Link href="/">
   <motion.div 
     initial={{ x: -50, opacity: 0 }}
     animate={{ x: 0, opacity: 1 }}
@@ -81,6 +82,7 @@ const Logo = ({ showLogo }) => (
       LoanSage
     </motion.span>
   </motion.div>
+    </Link>
 );
 
 const NavItem = ({ icon: Icon, text, href, onClick }) => (
