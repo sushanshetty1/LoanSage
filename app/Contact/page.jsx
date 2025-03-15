@@ -71,7 +71,7 @@ const ContactPage = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-white">Call Us</h3>
-                  <p className="text-gray-300 text-sm">+91 12345 67890</p>
+                  <p className="text-gray-300 text-sm">+91 90082 13107</p>
                 </div>
               </div>
             </div>
@@ -84,7 +84,7 @@ const ContactPage = () => {
                 <div>
                   <h3 className="text-lg font-bold text-white">Visit Us</h3>
                   <p className="text-gray-300 text-sm">
-                    123 LoanSage Street, Fintech City, India
+                    NMAMIT Nitte, Karkala, Udupi India
                   </p>
                 </div>
               </div>

@@ -207,19 +207,16 @@ const Footer = () => {
             <FooterHeading>Resources</FooterHeading>
             <ul className="space-y-3">
               <li>
-                <FooterLink href="/blog">Blog</FooterLink>
-              </li>
-              <li>
-                <FooterLink href="/guides">Guides</FooterLink>
+                <FooterLink href="/Guides">Guides</FooterLink>
               </li>
               <li>
                 <FooterLink href="/Calculators">Calculators</FooterLink>
               </li>
               <li>
-                <FooterLink href="/glossary">Loan Glossary</FooterLink>
+                <FooterLink href="/LoanGlossary">Loan Glossary</FooterLink>
               </li>
               <li>
-                <FooterLink href="/help-center">Help Center</FooterLink>
+                <FooterLink href="/HelpCenter">Help Center</FooterLink>
               </li>
             </ul>
           </div>

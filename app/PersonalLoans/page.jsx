@@ -15,6 +15,7 @@ import {
   Mic,
   Volume2,
 } from "lucide-react";
+import Link from "next/link";
 
 const PersonalLoanPage = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -130,12 +131,14 @@ const PersonalLoanPage = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.98 }}
               >
+                <Link href="/Sage">
                 <Button className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-6 rounded-full flex items-center justify-center space-x-2 shadow-lg shadow-purple-500/20 relative overflow-hidden group">
                   <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-400 to-purple-400 opacity-0 group-hover:opacity-20 transition-opacity"></span>
                   <CreditCard className="h-5 w-5 mr-2" />
                   <span>Check Loan Eligibility</span>
                   <ArrowRightCircle className="h-5 w-5 ml-1 group-hover:translate-x-1 transition-transform" />
                 </Button>
+                </Link>
               </motion.div>
             </motion.div>
           </motion.div>

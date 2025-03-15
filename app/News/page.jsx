@@ -1,8 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowRight, Calendar, Globe, Clock } from "lucide-react";
-import Link from "next/link";
+import { Calendar, Clock } from "lucide-react";
 
 const NewsPage = () => {
   const newsArticles = [
@@ -13,7 +12,78 @@ const NewsPage = () => {
         "LoanSage introduces a voice-enabled assistant supporting 10 Indian languages, revolutionizing the loan application process.",
       date: "2023-10-15",
       readTime: "3 min",
-      link: "#",
+    },
+    {
+      id: 2,
+      title: "OpenBanking Integration Goes Live",
+      description:
+        "LoanSage now integrates with OpenBanking APIs, providing real-time loan rate comparisons across major banks.",
+      date: "2023-10-10",
+      readTime: "4 min",
+    },
+    {
+      id: 3,
+      title: "AI-Powered Loan Recommendations",
+      description:
+        "Our new AI model offers personalized loan recommendations based on user profiles and financial history.",
+      date: "2023-10-05",
+      readTime: "5 min",
+    },
+    {
+      id: 4,
+      title: "LoanSage Wins Fintech Innovation Award",
+      description:
+        "LoanSage has been recognized as the most innovative fintech platform of the year at the Global Fintech Summit.",
+      date: "2023-09-28",
+      readTime: "2 min",
+    },
+    {
+      id: 5,
+      title: "New Feature: Instant Eligibility Check",
+      description:
+        "LoanSage now offers an instant eligibility check feature, allowing users to see if they qualify for a loan in seconds.",
+      date: "2023-09-25",
+      readTime: "3 min",
+    },
+    {
+      id: 6,
+      title: "Expanding to 10 New Cities",
+      description:
+        "LoanSage is expanding its services to 10 new cities across India, making loans more accessible to everyone.",
+      date: "2023-09-20",
+      readTime: "4 min",
+    },
+    {
+      id: 7,
+      title: "Introducing Regional Language Support",
+      description:
+        "LoanSage now supports loan applications and assistance in 10 regional languages, breaking language barriers.",
+      date: "2023-09-15",
+      readTime: "3 min",
+    },
+    {
+      id: 8,
+      title: "LoanSage Partners with Major Banks",
+      description:
+        "LoanSage has partnered with leading banks to offer exclusive loan rates and benefits to its users.",
+      date: "2023-09-10",
+      readTime: "4 min",
+    },
+    {
+      id: 9,
+      title: "New Mobile App Launch",
+      description:
+        "LoanSage has launched a new mobile app with enhanced features, making loan applications even easier.",
+      date: "2023-09-05",
+      readTime: "3 min",
+    },
+    {
+      id: 10,
+      title: "Customer Support Now Available 24/7",
+      description:
+        "LoanSage's customer support team is now available 24/7 to assist users with their loan-related queries.",
+      date: "2023-08-30",
+      readTime: "2 min",
     },
   ];
 
@@ -78,7 +148,7 @@ const NewsPage = () => {
                 </p>
 
                 {/* Metadata (Date and Read Time) */}
-                <div className="flex items-center space-x-4 text-gray-400 text-sm mb-4">
+                <div className="flex items-center space-x-4 text-gray-400 text-sm">
                   <div className="flex items-center space-x-1">
                     <Calendar className="h-4 w-4" />
                     <span>{article.date}</span>
@@ -88,15 +158,6 @@ const NewsPage = () => {
                     <span>{article.readTime} read</span>
                   </div>
                 </div>
-
-                {/* Read More Link */}
-                <Link
-                  href={article.link}
-                  className="flex items-center text-purple-400 hover:text-purple-300 transition-colors"
-                >
-                  <span>Read More</span>
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Link>
               </div>
             </motion.div>
           ))}

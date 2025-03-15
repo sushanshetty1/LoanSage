@@ -29,42 +29,21 @@ const Calculators = () => {
       title: "EMI Calculator",
       description:
         "Calculate your monthly EMI for loans based on principal, interest rate, and tenure.",
-      link: "/calculators/emi",
-    },
-    {
-      icon: Percent,
-      title: "Interest Rate Calculator",
-      description:
-        "Compare interest rates across banks and find the best deal for your loan.",
-      link: "/calculators/interest-rate",
-    },
-    {
-      icon: CreditCard,
-      title: "Loan Eligibility Calculator",
-      description:
-        "Check your eligibility for loans based on your income, credit score, and expenses.",
-      link: "/calculators/loan-eligibility",
+      link: "/Calculators/EMI",
     },
     {
       icon: BarChart,
       title: "Repayment Planner",
       description:
         "Plan your loan repayments and see how extra payments can reduce your tenure.",
-      link: "/calculators/repayment-planner",
-    },
-    {
-      icon: Globe,
-      title: "Currency Converter",
-      description:
-        "Convert loan amounts and EMIs into your preferred currency for better understanding.",
-      link: "/calculators/currency-converter",
+      link: "/Calculators/RepaymentPlanner",
     },
     {
       icon: Shield,
       title: "Debt-to-Income Ratio Calculator",
       description:
         "Calculate your debt-to-income ratio to assess your financial health.",
-      link: "/calculators/debt-to-income",
+      link: "/Calculators/DebtToIncome",
     },
   ];
 
