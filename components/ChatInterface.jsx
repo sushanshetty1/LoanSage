@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Globe, SendHorizontal, MessageCircle, Plus, Loader2, X, Menu, Banknote, BadgePercent } from "lucide-react";
 import { decodeBase64Audio, playAudio } from "@/utils/audioUtils";
 import { db } from "@/firebase";
-import { collection, addDoc, query, where, onSnapshot, orderBy, updateDoc, doc, getDoc, getDocs } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, orderBy, updateDoc, doc, getDoc, getDocs, Timestamp } from "firebase/firestore";
 import VoiceChat from "./VoiceChat";
 
 const ChatInterface = ({ user }) => {
@@ -18,6 +18,18 @@ const ChatInterface = ({ user }) => {
   const [error, setError] = useState(null);
   const [initialized, setInitialized] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [loanRequestForm, setLoanRequestForm] = useState({
+    amount: '',
+    duration: '',
+    purpose: '',
+    interestRate: '',
+    description: '',
+    bankBalance: '',
+    monthlyIncome: '',
+    creditScore: ''
+  });
+  const [showLoanRequestForm, setShowLoanRequestForm] = useState(false);
+
   const chatContainerRef = useRef(null);
   const inputRef = useRef(null);
   const langMenuRef = useRef(null);
@@ -91,6 +103,52 @@ const ChatInterface = ({ user }) => {
       tenure: tenureMatch ? `${tenureMatch[1]} ${tenureMatch[2]}` : null,
       interestRate: interestMatch ? parseInt(interestMatch[1]) : null
     };
+  };
+
+  // Handle loan request form change
+  const handleLoanRequestFormChange = (e) => {
+    const { name, value } = e.target;
+    setLoanRequestForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Submit loan request
+  const submitLoanRequest = async () => {
+    if (!user?.uid) return;
+
+    try {
+      await addDoc(collection(db, "loanRequests"), {
+        amount: parseFloat(loanRequestForm.amount),
+        duration: parseInt(loanRequestForm.duration),
+        purpose: loanRequestForm.purpose,
+        interestRate: parseFloat(loanRequestForm.interestRate),
+        description: loanRequestForm.description,
+        requester: "sage",
+        userName: user.displayName || "Anonymous",
+        userId: user.uid,
+        createdAt: Timestamp.now(),
+        approvals: [],
+        bankBalance: parseFloat(loanRequestForm.bankBalance),
+        monthlyIncome: parseFloat(loanRequestForm.monthlyIncome),
+        creditScore: parseInt(loanRequestForm.creditScore)
+      });
+
+      setLoanRequestForm({
+        amount: '',
+        duration: '',
+        purpose: '',
+        interestRate: '',
+        description: '',
+        bankBalance: '',
+        monthlyIncome: '',
+        creditScore: ''
+      });
+
+      setShowLoanRequestForm(false);
+      return true;
+    } catch (error) {
+      console.error("Error submitting loan request:", error);
+      return false;
+    }
   };
 
   useEffect(() => {
@@ -306,6 +364,19 @@ const ChatInterface = ({ user }) => {
         const preferences = extractPreferences(text);
         await saveUserPreferences(preferences);
         recommendations = await fetchLoans(preferences);
+
+        // If no loans are found, ask for loan request details
+        if (recommendations.length === 0) {
+          const botMessage = {
+            sender: "bot",
+            text: "No suitable loans found. Would you like to submit a loan request? Please provide the purpose of the loan.",
+            language: currentLanguage.code,
+            audio: isVoice ? "voice-response" : null
+          };
+          await saveMessage(botMessage);
+          setShowLoanRequestForm(true);
+          return;
+        }
       }
 
       // LLM API Call
@@ -636,6 +707,94 @@ const ChatInterface = ({ user }) => {
           </div>
         )}
       </div>
+
+      {/* Loan Request Form Modal */}
+      {showLoanRequestForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md">
+            <h2 className="text-xl font-bold text-white mb-4">Loan Request Form</h2>
+            <div className="space-y-4">
+              <input
+                type="number"
+                name="amount"
+                value={loanRequestForm.amount}
+                onChange={handleLoanRequestFormChange}
+                placeholder="Loan Amount"
+                className="w-full p-2 bg-gray-700 rounded text-white"
+              />
+              <input
+                type="number"
+                name="duration"
+                value={loanRequestForm.duration}
+                onChange={handleLoanRequestFormChange}
+                placeholder="Duration (in months)"
+                className="w-full p-2 bg-gray-700 rounded text-white"
+              />
+              <input
+                type="text"
+                name="purpose"
+                value={loanRequestForm.purpose}
+                onChange={handleLoanRequestFormChange}
+                placeholder="Purpose of Loan"
+                className="w-full p-2 bg-gray-700 rounded text-white"
+              />
+              <input
+                type="number"
+                name="interestRate"
+                value={loanRequestForm.interestRate}
+                onChange={handleLoanRequestFormChange}
+                placeholder="Preferred Interest Rate"
+                className="w-full p-2 bg-gray-700 rounded text-white"
+              />
+              <textarea
+                name="description"
+                value={loanRequestForm.description}
+                onChange={handleLoanRequestFormChange}
+                placeholder="Description"
+                className="w-full p-2 bg-gray-700 rounded text-white"
+              />
+              <input
+                type="number"
+                name="bankBalance"
+                value={loanRequestForm.bankBalance}
+                onChange={handleLoanRequestFormChange}
+                placeholder="Bank Balance"
+                className="w-full p-2 bg-gray-700 rounded text-white"
+              />
+              <input
+                type="number"
+                name="monthlyIncome"
+                value={loanRequestForm.monthlyIncome}
+                onChange={handleLoanRequestFormChange}
+                placeholder="Monthly Income"
+                className="w-full p-2 bg-gray-700 rounded text-white"
+              />
+              <input
+                type="number"
+                name="creditScore"
+                value={loanRequestForm.creditScore}
+                onChange={handleLoanRequestFormChange}
+                placeholder="Credit Score"
+                className="w-full p-2 bg-gray-700 rounded text-white"
+              />
+            </div>
+            <div className="flex justify-end mt-4 space-x-2">
+              <button
+                onClick={() => setShowLoanRequestForm(false)}
+                className="px-4 py-2 bg-gray-600 rounded text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitLoanRequest}
+                className="px-4 py-2 bg-blue-600 rounded text-white"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

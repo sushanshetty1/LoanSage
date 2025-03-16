@@ -3,55 +3,79 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req) {
   try {
+    // Check if API keys are configured
     if (!process.env.GEMINI_API_KEY || !process.env.SARVAM_API_KEY) {
-      return NextResponse.json({ error: "API keys not configured" }, { status: 500 });
+      return NextResponse.json(
+        { error: "API keys not configured" },
+        { status: 500 }
+      );
     }
 
-    const { prompt, language = "English", conversationHistory = [] } = await req.json();
+    // Parse the request body
+    const { prompt, language = "en-IN", conversationHistory = [], userPreferences } = await req.json();
+
     if (!prompt) {
-      return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Prompt is required" },
+        { status: 400 }
+      );
     }
 
     let translatedPrompt = prompt;
-    
-    // Step 1: If not English, translate the prompt to English for the LLM
+
+    // Step 1: Translate the prompt to English if necessary
     if (language !== "en-IN" && language !== "English") {
       try {
         translatedPrompt = await translateText(prompt, language, "en-IN");
         console.log("Translated prompt:", translatedPrompt);
       } catch (error) {
         console.error("Translation error:", error);
-        // Continue with original prompt if translation fails
+        // Continue with the original prompt if translation fails
       }
     }
-    
-    // Step 2: Use Sarvam Text Analytics to analyze user intent
+
+    // Step 2: Analyze user intent using Sarvam AI
     const intentData = await analyzeUserIntent(translatedPrompt);
-    
-    // Step 3: Generate appropriate response using Gemini based on the detected intent and conversation history
-    const englishResponse = await generateLoanResponse(translatedPrompt, intentData, language, conversationHistory);
-    
-    // Step 4: If not English, translate the response back to the user's language
-    let finalResponse = englishResponse;
+
+    // Step 3: Generate a response based on the detected intent
+    let responseText;
+    if (intentData.intent === "loan_recommendation") {
+      // Check if loans are available based on user preferences
+      const loans = await fetchLoansFromDatabase(userPreferences);
+      if (loans.length === 0) {
+        // No loans found, suggest creating a loan request
+        responseText = "No suitable loans found. Would you like to submit a loan request? Please provide the purpose of the loan.";
+      } else {
+        // Generate loan recommendations
+        responseText = await generateLoanRecommendations(loans, translatedPrompt, intentData);
+      }
+    } else {
+      // Handle other intents (e.g., eligibility check, application guidance)
+      responseText = await generateGenericResponse(translatedPrompt, intentData, conversationHistory);
+    }
+
+    // Step 4: Translate the response back to the user's language if necessary
+    let finalResponse = responseText;
     if (language !== "en-IN" && language !== "English") {
       try {
-        finalResponse = await translateText(englishResponse, "en-IN", language);
+        finalResponse = await translateText(responseText, "en-IN", language);
         console.log("Translated response:", finalResponse);
       } catch (error) {
         console.error("Translation error:", error);
-        // Continue with English response if translation fails
-        finalResponse = englishResponse;
+        // Continue with the English response if translation fails
+        finalResponse = responseText;
       }
     }
-    
-    // Step 5: Update conversation history
+
+    // Step 5: Update the conversation history
     const updatedHistory = [
       ...conversationHistory,
       { role: "user", content: prompt },
       { role: "assistant", content: finalResponse }
     ];
-    
-    return NextResponse.json({ 
+
+    // Return the response
+    return NextResponse.json({
       output: finalResponse,
       detectedIntent: intentData.intent,
       confidenceScore: intentData.confidence,
@@ -59,9 +83,10 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error("Server Error:", error);
-    return NextResponse.json({ 
-      error: error.message || "Failed to process financial information request" 
-    }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to process financial information request" },
+      { status: 500 }
+    );
   }
 }
 
@@ -248,6 +273,60 @@ function detectBasicIntent(text) {
     confidence: 0.4,
     reasoning: "No specific intent detected"
   };
+}
+
+async function generateLoanRecommendations(loans, prompt, intentData) {
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+  const systemPrompt = `You are a loan recommendation expert. Analyze the following loans and provide a summary:
+  - Loans: ${JSON.stringify(loans)}
+  - User Query: ${prompt}
+  - Detected Intent: ${intentData.intent}
+
+  Provide a concise response with the top 3 loan recommendations.`;
+
+  const result = await model.generateContent(systemPrompt);
+  return result.response.text();
+}
+
+async function fetchLoansFromDatabase(preferences) {
+  try {
+    // Example query to fetch loans from Firestore
+    const loansRef = collection(db, "loans");
+    let q = query(loansRef);
+
+    if (preferences?.amount) {
+      q = query(q, where("minAmount", "<=", preferences.amount));
+      q = query(q, where("maxAmount", ">=", preferences.amount));
+    }
+    if (preferences?.tenure) {
+      q = query(q, where("tenure", "==", preferences.tenure));
+    }
+    if (preferences?.interestRate) {
+      q = query(q, where("interestRate", "<=", preferences.interestRate));
+    }
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error("Error fetching loans:", error);
+    return [];
+  }
+}
+
+async function generateGenericResponse(prompt, intentData, conversationHistory) {
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+  const systemPrompt = `You are a financial assistant. Respond to the user's query:
+  - User Query: ${prompt}
+  - Detected Intent: ${intentData.intent}
+
+  Provide a helpful and concise response.`;
+
+  const result = await model.generateContent(systemPrompt);
+  return result.response.text();
 }
 
 // Helper function to detect loan type from text
