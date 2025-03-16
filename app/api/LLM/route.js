@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// API route handler for the loan advisor
 export async function POST(req) {
   try {
     if (!process.env.GEMINI_API_KEY || !process.env.SARVAM_API_KEY) {
@@ -104,7 +103,8 @@ async function analyzeUserIntent(text) {
       properties: {
         options: [
           "loan_eligibility_check", 
-          "loan_application_guidance", 
+          "loan_application_guidance",
+          "loan_recommendation",
           "financial_literacy_tips",
           "student_loan_information",
           "general_inquiry"
@@ -290,7 +290,10 @@ async function generateLoanResponse(userQuery, intentData, language, conversatio
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // Create a system prompt based on the detected intent
+    if(intentData.intent === "loan_recommendation") {
+      return await handleLoanRecommendation(userQuery, intentData, conversationHistory);
+    }
+
     let systemPrompt;
     
     switch (intentData.intent) {
@@ -449,7 +452,29 @@ async function generateLoanResponse(userQuery, intentData, language, conversatio
       }
     }
     
-    // Create a chat session with the system prompt
+    async function handleLoanRecommendation(userQuery, intentData, conversationHistory) {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const systemPrompt = `You are a loan recommendation expert. Follow these steps:
+        1. Ask user for required details (loan amount, tenure, preferred interest rate)
+        2. Collect responses in JSON format
+        3. Analyze loan options from database
+        4. Present top 3 options with key features
+        5. Keep responses conversational and friendly`;
+
+        const chat = model.startChat({
+          history: formatConversationHistory(conversationHistory),
+          generationConfig: {
+            temperature: 0.5,
+            maxOutputTokens: 800
+          }
+        });
+
+        const result = await chat.sendMessage(systemPrompt + "\n\nUser query: " + userQuery);
+        return result.response.text();
+      }
+
     const chat = model.startChat({
       history: formattedHistory,
       generationConfig: {

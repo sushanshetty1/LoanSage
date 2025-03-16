@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { Globe, SendHorizontal, MessageCircle, Plus, Loader2, X, Menu } from "lucide-react";
+import { Globe, SendHorizontal, MessageCircle, Plus, Loader2, X, Menu, Banknote, BadgePercent } from "lucide-react";
 import { decodeBase64Audio, playAudio } from "@/utils/audioUtils";
 import { db } from "@/firebase";
-import { collection, addDoc, query, where, onSnapshot, orderBy, updateDoc, doc, getDoc } from "firebase/firestore";
+import { collection, addDoc, query, where, onSnapshot, orderBy, updateDoc, doc, getDoc, getDocs } from "firebase/firestore";
 import VoiceChat from "./VoiceChat";
 
 const ChatInterface = ({ user }) => {
@@ -34,6 +34,64 @@ const ChatInterface = ({ user }) => {
     { code: "ta-IN", name: "Tamil" },
     { code: "te-IN", name: "Telugu" }
   ];
+
+  // Fetch loans from Firebase
+  const fetchLoans = async (preferences) => {
+    try {
+      const loansRef = collection(db, "loans");
+      let q = query(loansRef);
+      
+      if(preferences?.amount) {
+        q = query(q, where("minAmount", "<=", preferences.amount));
+        q = query(q, where("maxAmount", ">=", preferences.amount));
+      }
+      if(preferences?.tenure) {
+        q = query(q, where("tenure", "==", preferences.tenure));
+      }
+      if(preferences?.interestRate) {
+        q = query(q, where("interestRate", "<=", preferences.interestRate));
+      }
+      
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error("Error fetching loans:", error);
+      return [];
+    }
+  };
+
+  // Save user preferences
+  const saveUserPreferences = async (preferences) => {
+    if (!user?.uid) return;
+    
+    try {
+      await updateDoc(doc(db, "users", user.uid), {
+        preferences: {
+          loanAmount: preferences.amount,
+          preferredTenure: preferences.tenure,
+          maxInterestRate: preferences.interestRate,
+          lastUpdated: new Date()
+        }
+      });
+      return true;
+    } catch (error) {
+      console.error("Error saving preferences:", error);
+      return false;
+    }
+  };
+
+  // Extract preferences from message
+  const extractPreferences = (text) => {
+    const amountMatch = text.match(/₹?(\d+,?\d+)/);
+    const tenureMatch = text.match(/(\d+)\s*(months|years)/i);
+    const interestMatch = text.match(/(\d+)% interest/i);
+
+    return {
+      amount: amountMatch ? parseInt(amountMatch[1].replace(/,/g, '')) : null,
+      tenure: tenureMatch ? `${tenureMatch[1]} ${tenureMatch[2]}` : null,
+      interestRate: interestMatch ? parseInt(interestMatch[1]) : null
+    };
+  };
 
   useEffect(() => {
     const fetchUserLanguage = async () => {
@@ -237,6 +295,19 @@ const ChatInterface = ({ user }) => {
       await saveMessage(userMessage);
       setInputText("");
 
+      // Check for loan recommendation intent
+      const isRecommendationQuery = text.toLowerCase().includes("recommend") || 
+                                  text.toLowerCase().includes("suggest") || 
+                                  text.toLowerCase().includes("best loan");
+
+      // Extract and save preferences
+      let recommendations = [];
+      if (isRecommendationQuery) {
+        const preferences = extractPreferences(text);
+        await saveUserPreferences(preferences);
+        recommendations = await fetchLoans(preferences);
+      }
+
       // LLM API Call
       const llmResponse = await fetch("/api/LLM", {
         method: "POST",
@@ -246,8 +317,9 @@ const ChatInterface = ({ user }) => {
           language: currentLanguage.code,
           conversationHistory: messages.map(msg => ({
             role: msg.sender === "user" ? "user" : "model",
-            parts: [{ text: msg.text }]
-          }))
+            content: msg.text
+          })),
+          userPreferences: user.preferences
         }),
       });
 
@@ -255,17 +327,13 @@ const ChatInterface = ({ user }) => {
       const llmData = await llmResponse.json();
       const responseText = llmData.output;
 
-      // Generate speech for voice responses
-      if (isVoice) {
-        await generateSpeech(responseText);
-      }
-
-      // Save bot response
+      // Save bot response with recommendations
       const botMessage = {
         sender: "bot",
         text: responseText,
         language: currentLanguage.code,
-        audio: isVoice ? "voice-response" : null
+        audio: isVoice ? "voice-response" : null,
+        ...(recommendations.length > 0 && { recommendations })
       };
       await saveMessage(botMessage);
 
@@ -469,7 +537,38 @@ const ChatInterface = ({ user }) => {
                         : "bg-gradient-to-br from-gray-800 to-gray-750 text-white border border-gray-700/50"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap break-words leading-relaxed">{message.text}</p>
+                    {message.recommendations ? (
+                      <div className="loan-recommendations space-y-3">
+                        <div className="flex items-center space-x-2 mb-3">
+                          <Banknote className="h-5 w-5 text-green-400" />
+                          <h3 className="text-lg font-semibold text-white">Top Loan Recommendations</h3>
+                        </div>
+                        {message.recommendations.map((loan, i) => (
+                          <div key={i} className="bg-gray-700/50 p-4 rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="text-blue-300 font-medium">{loan.bankName}</h4>
+                              <BadgePercent className="h-5 w-5 text-green-400" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <p className="text-gray-300">Amount: 
+                                <span className="ml-2 text-white">₹{loan.minAmount?.toLocaleString()} - ₹{loan.maxAmount?.toLocaleString()}</span>
+                              </p>
+                              <p className="text-gray-300">Rate: 
+                                <span className="ml-2 text-white">{loan.interestRate}%</span>
+                              </p>
+                              <p className="text-gray-300">Tenure: 
+                                <span className="ml-2 text-white">{loan.tenure} months</span>
+                              </p>
+                              <p className="text-gray-300">Type: 
+                                <span className="ml-2 text-white capitalize">{loan.loanType?.replace("_", " ")}</span>
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap break-words leading-relaxed">{message.text}</p>
+                    )}
                     <p className="text-xs mt-2 text-gray-300 opacity-75 flex items-center">
                       {message.sender === "bot" && (
                         <span className="mr-1 text-blue-400 font-medium">Sage</span>
@@ -532,6 +631,7 @@ const ChatInterface = ({ user }) => {
             </div>
             <div className="text-xs text-gray-500 text-center mt-2">
               {currentLanguage.name !== "English" && `Responding in ${currentLanguage.name}`}
+              {user.preferences && ` · Current preferences: ₹${user.preferences.loanAmount?.toLocaleString() || '--'}, ${user.preferences.preferredTenure || '--'} tenure`}
             </div>
           </div>
         )}
