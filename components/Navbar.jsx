@@ -33,16 +33,16 @@ import { doc, setDoc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase";
 
 const languageOptions = [
-  { code: 'en-IN', name: 'English', flag: '🇬🇧' },
-  { code: 'hi-IN', name: 'Hindi', flag: 'हि' },
-  { code: 'bn-IN', name: 'Bengali', flag: 'বা' },
-  { code: 'gu-IN', name: 'Gujarati', flag: 'ગુ' },
-  { code: 'kn-IN', name: 'Kannada', flag: 'ಕ' },
-  { code: 'ml-IN', name: 'Malayalam', flag: 'മ' },
-  { code: 'mr-IN', name: 'Marathi', flag: 'म' },
-  { code: 'pa-IN', name: 'Punjabi', flag: 'ਪੰ' },
-  { code: 'ta-IN', name: 'Tamil', flag: 'த' },
-  { code: 'te-IN', name: 'Telugu', flag: 'తె' }
+  { code: 'en-IN', name: 'English'},
+  { code: 'hi-IN', name: 'Hindi'},
+  { code: 'bn-IN', name: 'Bengali'},
+  { code: 'gu-IN', name: 'Gujarati'},
+  { code: 'kn-IN', name: 'Kannada'},
+  { code: 'ml-IN', name: 'Malayalam'},
+  { code: 'mr-IN', name: 'Marathi'},
+  { code: 'pa-IN', name: 'Punjabi'},
+  { code: 'ta-IN', name: 'Tamil'},
+  { code: 'te-IN', name: 'Telugu'}
 ];
 
 const Logo = ({ showLogo }) => (
@@ -406,6 +406,7 @@ const Navbar = () => {
       } else {
         await setDoc(userRef, { lang: language.code });
       }
+      window.location.reload();
     }
   };
 
