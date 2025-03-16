@@ -132,6 +132,7 @@ async function analyzeUserIntent(text) {
           "loan_recommendation",
           "financial_literacy_tips",
           "student_loan_information",
+          "higher_education_financing", 
           "general_inquiry"
         ]
       }
@@ -210,7 +211,28 @@ async function analyzeUserIntent(text) {
 function detectBasicIntent(text) {
   const lowercaseText = text.toLowerCase();
   
-  // Student loan specific detection
+  if (/higher\s+education|college|university|masters|phd|abroad|scholarship|no\s+money|no\s+financial|financial\s+backup|can't\s+afford|parents\s+can't\s+pay|expensive\s+tuition|graduate\s+school/i.test(lowercaseText)) {
+    if (/no\s+money|no\s+financial|financial\s+backup|can't\s+afford|parents\s+can't\s+pay|expensive|no\s+support|scholarship/i.test(lowercaseText)) {
+      return {
+        intent: "higher_education_financing",
+        loanType: "education_loan",
+        financialDetails: extractFinancialConstraints(lowercaseText),
+        studentDetails: extractStudentDetails(lowercaseText),
+        confidence: 0.8,
+        reasoning: "Detected higher education financing need with financial constraints"
+      };
+    } else {
+      return {
+        intent: "student_loan_information",
+        loanType: "education_loan",
+        financialDetails: "",
+        studentDetails: extractStudentDetails(lowercaseText),
+        confidence: 0.7,
+        reasoning: "Detected higher education query"
+      };
+    }
+  }
+
   if (/student\s+loan|education\s+loan|college\s+loan|university\s+loan|school\s+loan/i.test(lowercaseText)) {
     if (/eligib|qualify|approval|can\s+i\s+get|chances|how\s+much\s+can\s+i\s+borrow/i.test(lowercaseText)) {
       return {
@@ -315,6 +337,32 @@ async function fetchLoansFromDatabase(preferences) {
   }
 }
 
+function extractFinancialConstraints(text) {
+  let constraints = [];
+  
+  if (/no\s+money|no\s+financial|no\s+backup|no\s+support/i.test(text)) {
+    constraints.push("No financial backup");
+  }
+  
+  if (/can't\s+afford|expensive|high\s+cost|costly/i.test(text)) {
+    constraints.push("Affordability concerns");
+  }
+  
+  if (/parents\s+can't\s+pay|family\s+can't\s+support|no\s+family\s+support/i.test(text)) {
+    constraints.push("No family financial support");
+  }
+  
+  if (/scholarship|financial\s+aid|grant|funding/i.test(text)) {
+    constraints.push("Seeking alternative funding");
+  }
+  
+  if (/working|part-time|job|income/i.test(text)) {
+    constraints.push("May have part-time income");
+  }
+  
+  return constraints.join(', ');
+}
+
 async function generateGenericResponse(prompt, intentData, conversationHistory) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -376,6 +424,51 @@ async function generateLoanResponse(userQuery, intentData, language, conversatio
     let systemPrompt;
     
     switch (intentData.intent) {
+      case "higher_education_financing":
+        systemPrompt = `You are a higher education financial planning specialist. The user has asked: "${userQuery}"
+        
+        Our analysis shows they're interested in financing their higher education but have financial constraints:
+        
+        Student details detected: ${intentData.studentDetails || "None provided"}
+        Financial constraints detected: ${intentData.financialDetails || "No financial backup"}
+        
+        Provide comprehensive guidance on financing higher education with limited financial resources, including:
+        
+        1. COMPREHENSIVE FUNDING STRATEGY:
+           - Explain different funding sources (loans, scholarships, grants, work-study)
+           - How to create a balanced funding portfolio to minimize debt
+           - Government vs private education loans comparison
+           
+        2. SCHOLARSHIP OPPORTUNITIES:
+           - Types of scholarships (merit, need-based, diversity, field-specific)
+           - Tips for successful scholarship applications
+           - Resources for finding lesser-known scholarships
+           
+        3. FINANCIAL AID GUIDANCE:
+           - FAFSA/financial aid application process
+           - Need-based aid programs
+           - Understanding aid award letters
+           
+        4. PART-TIME WORK OPTIONS:
+           - On-campus employment opportunities
+           - Balancing work and studies
+           - Remote/flexible earning opportunities for students
+           
+        5. BUDGETING FOR STUDENTS:
+           - Creating a realistic student budget
+           - Reducing expenses while in school
+           - Managing loan disbursements effectively
+           
+        6. LONG-TERM FINANCIAL PLANNING:
+           - Understanding debt-to-income ratio after graduation
+           - Loan repayment options and forgiveness programs
+           - Building emergency funds while studying
+        
+        If they haven't provided specific details about their education plans or financial situation, ask clarifying questions to provide more tailored guidance.
+        
+        Respond with empathy to their financial constraints while maintaining an encouraging tone about the possibilities for funding their education. Use clear, simple language suitable for students.`;
+        break;
+
       case "loan_eligibility_check":
         if (intentData.loanType === "student_loan" || intentData.loanType === "education_loan") {
           systemPrompt = `You are a helpful student loan advisor. The user has asked: "${userQuery}"
@@ -529,6 +622,48 @@ async function generateLoanResponse(userQuery, intentData, language, conversatio
           });
         }
       }
+    }
+
+    function extractStudentDetails(text) {
+      let details = [];
+      
+      // Extract education level with more options
+      if (/undergraduate|bachelor|graduate|master|phd|doctorate|mba|postgraduate|higher\s+education|further\s+studies/i.test(text)) {
+        const matches = text.match(/undergraduate|bachelor|graduate|master|phd|doctorate|mba|postgraduate|higher\s+education|further\s+studies/i);
+        if (matches) details.push(`Education level: ${matches[0]}`);
+      }
+      
+      // Extract study location (domestic/international)
+      if (/abroad|overseas|foreign|international|different country/i.test(text)) {
+        details.push("Location: International study");
+      } else if (/domestic|local|within country/i.test(text)) {
+        details.push("Location: Domestic study");
+      }
+      
+      // Extract field of study if mentioned
+      const fieldRegex = /studying\s+([A-Za-z\s]+)|([A-Za-z\s]+)\s+degree|([A-Za-z\s]+)\s+program|major\s+in\s+([A-Za-z\s]+)/i;
+      const fieldMatch = text.match(fieldRegex);
+      if (fieldMatch) {
+        const field = fieldMatch[1] || fieldMatch[2] || fieldMatch[3] || fieldMatch[4];
+        if (field) details.push(`Field: ${field.trim()}`);
+      }
+      
+      // Extract university/college if mentioned
+      const uniRegex = /at\s+([A-Za-z\s]+university|[A-Za-z\s]+college|[A-Za-z\s]+institute)/i;
+      const uniMatch = text.match(uniRegex);
+      if (uniMatch) details.push(`Institution: ${uniMatch[1]}`);
+      
+      // Extract year/semester if mentioned
+      const yearRegex = /(first|second|third|fourth|final)\s+(year|semester)/i;
+      const yearMatch = text.match(yearRegex);
+      if (yearMatch) details.push(`Year: ${yearMatch[0]}`);
+      
+      // Extract duration or timeline
+      const durationRegex = /(\d+)(\s+|-)(year|month|semester)s?(\s+|-)(program|course|degree)/i;
+      const durationMatch = text.match(durationRegex);
+      if (durationMatch) details.push(`Duration: ${durationMatch[0]}`);
+      
+      return details.join(', ');
     }
     
     async function handleLoanRecommendation(userQuery, intentData, conversationHistory) {
