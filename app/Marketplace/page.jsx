@@ -279,7 +279,88 @@ const LoanMarketplace = () => {
 
               <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  {/* Form fields remain the same as before */}
+                  <div>
+                    <label htmlFor="amount" className="block text-sm font-medium text-gray-300 mb-1">
+                      Loan Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      id="amount"
+                      name="amount"
+                      value={formData.amount}
+                      onChange={handleInputChange}
+                      className="w-full bg-gray-800/60 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Enter amount"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="duration" className="block text-sm font-medium text-gray-300 mb-1">
+                      Duration (months)
+                    </label>
+                    <input
+                      type="number"
+                      id="duration"
+                      name="duration"
+                      value={formData.duration}
+                      onChange={handleInputChange}
+                      className="w-full bg-gray-800/60 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Enter duration"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="purpose" className="block text-sm font-medium text-gray-300 mb-1">
+                      Purpose
+                    </label>
+                    <select
+                      id="purpose"
+                      name="purpose"
+                      value={formData.purpose}
+                      onChange={handleInputChange}
+                      className="w-full bg-gray-800/60 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      required
+                    >
+                      <option value="">Select purpose</option>
+                      <option value="Personal">Personal</option>
+                      <option value="Education">Education</option>
+                      <option value="Business">Business</option>
+                      <option value="Home">Home</option>
+                      <option value="Vehicle">Vehicle</option>
+                      <option value="Medical">Medical</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="interestRate" className="block text-sm font-medium text-gray-300 mb-1">
+                      Interest Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      id="interestRate"
+                      name="interestRate"
+                      value={formData.interestRate}
+                      onChange={handleInputChange}
+                      className="w-full bg-gray-800/60 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="Enter interest rate"
+                      step="0.01"
+                      required
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      id="description"
+                      name="description"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      className="w-full bg-gray-800/60 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[100px]"
+                      placeholder="Enter loan details and purpose"
+                      required
+                    ></textarea>
+                  </div>
                 </div>
 
                 <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} className="inline-block w-full">
